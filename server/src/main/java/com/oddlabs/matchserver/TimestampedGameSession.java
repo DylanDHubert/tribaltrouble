@@ -491,19 +491,17 @@ public final class TimestampedGameSession {
             return;
         }
 
-        // Only count games with all human players (no AI)
-        if (session.getParticipants().length != session.getPlayerInfo().length) {
-            MatchmakingServer.getLogger().info(
-                    "Game " + database_id + ". Skipping Steam achievements update - game includes AI players");
-            return;
-        }
-
+        // Mirror the DB win/loss accounting. This runs only from teamWon, which
+        // fires when a real human opponent lost, so AI fillers are irrelevant and
+        // pure-vs-AI games never reach here (matching the wins/losses columns).
         Participant[] participants = session.getParticipants();
         for (int i = 0; i < participants.length; i++) {
             String nick = participants[i].getNick();
 
             Long steamId = DBInterface.getSteamIdByNick(nick);
             if (steamId == null) {
+                MatchmakingServer.getLogger().warning(
+                        "Game " + database_id + ". No Steam ID linked for " + nick + ", skipping Steam stats push");
                 continue;
             }
 
