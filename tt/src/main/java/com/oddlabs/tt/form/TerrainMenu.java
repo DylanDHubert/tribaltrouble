@@ -1120,7 +1120,20 @@ public final class TerrainMenu extends Group {
 
         @Override
         public void itemChosen(@NonNull PulldownMenu<Void> menu, int item_index) {
+            int previous_count = player_count;
             player_count = item_index + DEFAULT_PLAYER_COUNT;
+
+            // Rebuilding the grid throws away the old menus, so snapshot the host's current choices first and
+            // carry them over to the matching slots. Only genuinely new slots fall back to defaults; changing
+            // the count no longer wipes already-configured slots.
+            int[] prev_difficulty = new int[previous_count];
+            int[] prev_race = new int[previous_count];
+            int[] prev_team = new int[previous_count];
+            for (int i = 0; i < previous_count; i++) {
+                prev_difficulty[i] = difficulty_pulldown_menus[i].getChosenItemIndex();
+                prev_race[i] = race_pulldown_menus[i].getChosenItemIndex();
+                prev_team[i] = team_pulldown_menus[i].getChosenItemIndex();
+            }
 
             ScrollableGroup new_group = buildPlayerSlots(player_count);
             if (multiplayer) {
@@ -1135,13 +1148,20 @@ public final class TerrainMenu extends Group {
             current_race_team = new_group;
 
             for (int i = 0; i < player_count; i++) {
-                team_pulldown_menus[i].chooseItem(defaultTeam(i));
-                if (!multiplayer && i == 1) {
-                    difficulty_pulldown_menus[i].chooseItem(PlayerSlot.AI_EASY);
-                    race_pulldown_menus[i].chooseItem((race_pulldown_menus[0].getChosenItemIndex() + 1) % 2);
-                } else if (i != 0) {
-                    // MP non-host slots default to Open (index 0); SP non-host slots default to Closed (index 0).
-                    difficulty_pulldown_menus[i].chooseItem(0);
+                if (i < previous_count) {
+                    difficulty_pulldown_menus[i].chooseItem(prev_difficulty[i]);
+                    race_pulldown_menus[i].chooseItem(prev_race[i]);
+                    // Team options run 1..player_count, so clamp the carried-over choice when the count shrinks.
+                    team_pulldown_menus[i].chooseItem(Math.min(prev_team[i], player_count - 1));
+                } else {
+                    team_pulldown_menus[i].chooseItem(defaultTeam(i));
+                    if (!multiplayer && i == 1) {
+                        difficulty_pulldown_menus[i].chooseItem(PlayerSlot.AI_EASY);
+                        race_pulldown_menus[i].chooseItem((race_pulldown_menus[0].getChosenItemIndex() + 1) % 2);
+                    } else if (i != 0) {
+                        // MP non-host slots default to Open (index 0); SP non-host slots default to Closed (index 0).
+                        difficulty_pulldown_menus[i].chooseItem(0);
+                    }
                 }
             }
             markModified();
