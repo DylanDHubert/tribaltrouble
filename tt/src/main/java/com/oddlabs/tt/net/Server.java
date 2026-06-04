@@ -327,12 +327,9 @@ public final class Server implements ConnectionListenerInterface {
         int max_teams = players.length;
         if (game != null && game.isRated())
             max_teams = 2;
-        int race = join_default_race[available_slot] != JOIN_DEFAULT_NONE
-                ? join_default_race[available_slot]
-                : random.nextInt(RacesResources.getNumRaces());
-        int team = join_default_team[available_slot] != JOIN_DEFAULT_NONE
-                ? join_default_team[available_slot] % max_teams
-                : available_slot % max_teams;
+        int race = join_default_race[available_slot] != JOIN_DEFAULT_NONE ? join_default_race[available_slot] : random.nextInt(
+                RacesResources.getNumRaces());
+        int team = join_default_team[available_slot] != JOIN_DEFAULT_NONE ? join_default_team[available_slot] % max_teams : available_slot % max_teams;
         PlayerInfo player_info = new PlayerInfo(team, race, name);
         player_slot.setRating(rating);
         player_slot.setType(PlayerSlot.HUMAN);
