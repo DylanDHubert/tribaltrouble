@@ -1,8 +1,9 @@
 package com.oddlabs.tt.net;
 
-import com.oddlabs.matchmaking.RosterTemplate;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+
+import com.oddlabs.matchmaking.RosterTemplate;
 
 public final class GameNetwork {
     private final Server server;
@@ -22,6 +23,8 @@ public final class GameNetwork {
 
     public void setInitialRoster(@Nullable RosterTemplate initial_roster) {
         this.initial_roster = initial_roster;
+        if (server != null && initial_roster != null)
+            server.applyRosterJoinDefaults(initial_roster);
     }
 
     public @Nullable RosterTemplate getInitialRoster() {
