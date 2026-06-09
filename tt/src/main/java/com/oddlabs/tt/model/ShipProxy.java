@@ -61,6 +61,13 @@ public final class ShipProxy extends Building {
         getUnitGrid().freeGrid(getGridX(), getGridY(), this, UnitGrid.LAND);
     }
 
+    public final void moveTo(int grid_x, int grid_y) {
+        free();
+        setGridPosition(grid_x, grid_y);
+        setPosition(UnitGrid.coordinateFromGrid(grid_x), UnitGrid.coordinateFromGrid(grid_y));
+        occupy();
+    }
+
     @Override
     public final void place() {
         register();

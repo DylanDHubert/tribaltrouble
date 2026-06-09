@@ -38,7 +38,7 @@ public class Ship extends Building implements Movable {
     private static final float REMOVE_DELAY = 1f / 10f;
 
     private static final int MAX_SUPPLY_COUNT = 200;
-    private static final int OCCUPY_LENGTH_CELLS = 8;
+    private static final int OCCUPY_LENGTH_CELLS = 10;
     private static final int OCCUPY_WIDTH_CELLS = 2;
 
     public static final Cost COST_ROCK_WEAPON = new Cost(new Class[]{TreeSupply.class, RockSupply.class},
@@ -90,6 +90,8 @@ public class Ship extends Building implements Movable {
     private int hit_points = 1;
     private int build_points = 0;
     private float[][] old_landscape_heights;
+
+    private boolean slid = false;
 
     private Target rally_point = this;
 
@@ -297,7 +299,7 @@ public class Ship extends Building implements Movable {
         proxy = null;
     }
 
-    private void createProxy() {
+    private void updateProxy() {
         if (build_points < getBuildingTemplate().getMaxHitPoints()) return;
         UnitGrid grid = getUnitGrid();
         float half_length_meters = (OCCUPY_LENGTH_CELLS + 8) * HeightMap.METERS_PER_UNIT_GRID * 0.5f;
@@ -313,14 +315,22 @@ public class Ship extends Building implements Movable {
                         continue;
                     }
                     if (grid.getRegion(nx, ny, UnitGrid.LAND) != null
-                            && !grid.isGridOccupied(nx, ny, UnitGrid.LAND)) {
-                        proxy = new ShipProxy(nx, ny, this);
-                        proxy.place();
+                            && (!grid.isGridOccupied(nx, ny, UnitGrid.LAND)
+                                    || grid.getOccupant(nx, ny, UnitGrid.LAND) == proxy)) {
+                        if (proxy != null && !proxy.isDead()) {
+                            if (proxy.getGridX() != nx || proxy.getGridY() != ny) {
+                                proxy.moveTo(nx, ny);
+                            }
+                        } else {
+                            proxy = new ShipProxy(nx, ny, this);
+                            proxy.place();
+                        }
                         return;
                     }
                 }
             }
         }
+        removeProxy();
     }
 
     public final boolean canExitTower() {
@@ -372,12 +382,15 @@ public class Ship extends Building implements Movable {
     public final void deployChieftain() {
     }
 
-    private @NonNull Unit createUnit(Target rally_point, @NonNull UnitTemplate template) {
-        Unit unit = ship_hr.exitUnit(template);
-        if (unit != null && rally_point != null) {
-            unit.setTarget(rally_point, Action.MOVE, false);
+    private Unit createUnit(Target rally_point, @NonNull UnitTemplate template) {
+        if (proxy != null) {
+            Unit unit = ship_hr.exitUnit(template);
+            if (unit != null && rally_point != null) {
+                unit.setTarget(rally_point, Action.MOVE, false);
+            }
+            return unit;
         }
-        return unit;
+        return null;
     }
 
     public final void createArmy(int num_peon, int num_rock, int num_iron, int num_rubber) {
@@ -460,57 +473,53 @@ public class Ship extends Building implements Movable {
         if (build_points < getTemplate().getMaxHitPoints()) {
             build_points = Math.min(build_points + amount, getTemplate().getMaxHitPoints());
             reinsert();
-            createProxy();
             if (build_points == getTemplate().getMaxHitPoints()) {
+                updateProxy();
                 getOwner().getWorld().getNotificationListener().newSelectableNotification(this);
                 getAbilities().addAbilities(getTemplate().getAbilities());
                 supply_containers.put(Unit.class, new ShipUnitContainer(this));
-                if (getAbilities().hasAbilities(Abilities.SUPPLY_CONTAINER)) {
-                    SupplyContainer tree_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
-                    SupplyContainer rock_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
-                    SupplyContainer iron_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
-                    SupplyContainer rubber_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
-                    supply_containers.put(TreeSupply.class, tree_supply);
-                    supply_containers.put(RockSupply.class, rock_supply);
-                    supply_containers.put(IronSupply.class, iron_supply);
-                    supply_containers.put(RubberSupply.class, rubber_supply);
-
-                    supply_containers.put(RockAxeWeapon.class, new ShipSupplyContainer(ship_hr, RockAxeWeapon.class));
-                    supply_containers.put(RockSpearWeapon.class, new ShipSupplyContainer(ship_hr,
-                            RockSpearWeapon.class));
-                    supply_containers.put(IronAxeWeapon.class, new ShipSupplyContainer(ship_hr, IronAxeWeapon.class));
-                    supply_containers.put(IronSpearWeapon.class, new ShipSupplyContainer(ship_hr,
-                            IronSpearWeapon.class));
-                    supply_containers.put(RubberAxeWeapon.class, new ShipSupplyContainer(ship_hr,
-                            RubberAxeWeapon.class));
-                    supply_containers.put(RubberSpearWeapon.class, new ShipSupplyContainer(ship_hr,
-                            RubberSpearWeapon.class));
-
-                    deploy_containers.put(DeployType.ROCK_WARRIOR, new ShipDeployContainer(this, 1f,
-                            DeployType.ROCK_WARRIOR, RockAxeWeapon.class, false));
-                    deploy_containers.put(DeployType.IRON_WARRIOR, new ShipDeployContainer(this, 1.5f,
-                            DeployType.IRON_WARRIOR, IronAxeWeapon.class, false));
-                    deploy_containers.put(DeployType.RUBBER_WARRIOR, new ShipDeployContainer(this, 2f,
-                            DeployType.RUBBER_WARRIOR, RubberAxeWeapon.class, false));
-                    deploy_containers.put(DeployType.PEON, new ShipDeployContainer(this, .5f, DeployType.PEON, null,
-                            false));
-                    deploy_containers.put(DeployType.PEON_HARVEST_TREE, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_HARVEST_TREE, null, false));
-                    deploy_containers.put(DeployType.PEON_TRANSPORT_TREE, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_TRANSPORT_TREE, TreeSupply.class, true));
-                    deploy_containers.put(DeployType.PEON_HARVEST_ROCK, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_HARVEST_ROCK, null, false));
-                    deploy_containers.put(DeployType.PEON_TRANSPORT_ROCK, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_TRANSPORT_ROCK, RockSupply.class, true));
-                    deploy_containers.put(DeployType.PEON_HARVEST_IRON, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_HARVEST_IRON, null, false));
-                    deploy_containers.put(DeployType.PEON_TRANSPORT_IRON, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_TRANSPORT_IRON, IronSupply.class, true));
-                    deploy_containers.put(DeployType.PEON_HARVEST_RUBBER, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_HARVEST_RUBBER, null, false));
-                    deploy_containers.put(DeployType.PEON_TRANSPORT_RUBBER, new ShipDeployContainer(this, .5f,
-                            DeployType.PEON_TRANSPORT_RUBBER, RubberSupply.class, true));
-                }
+                SupplyContainer tree_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
+                SupplyContainer rock_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
+                SupplyContainer iron_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
+                SupplyContainer rubber_supply = new SupplyContainer(MAX_SUPPLY_COUNT);
+                supply_containers.put(TreeSupply.class, tree_supply);
+                supply_containers.put(RockSupply.class, rock_supply);
+                supply_containers.put(IronSupply.class, iron_supply);
+                supply_containers.put(RubberSupply.class, rubber_supply);
+                supply_containers.put(RockAxeWeapon.class, new ShipSupplyContainer(ship_hr, RockAxeWeapon.class));
+                supply_containers.put(RockSpearWeapon.class, new ShipSupplyContainer(ship_hr,
+                        RockSpearWeapon.class));
+                supply_containers.put(IronAxeWeapon.class, new ShipSupplyContainer(ship_hr, IronAxeWeapon.class));
+                supply_containers.put(IronSpearWeapon.class, new ShipSupplyContainer(ship_hr,
+                        IronSpearWeapon.class));
+                supply_containers.put(RubberAxeWeapon.class, new ShipSupplyContainer(ship_hr,
+                        RubberAxeWeapon.class));
+                supply_containers.put(RubberSpearWeapon.class, new ShipSupplyContainer(ship_hr,
+                        RubberSpearWeapon.class));
+                deploy_containers.put(DeployType.ROCK_WARRIOR, new ShipDeployContainer(this, 1f,
+                        DeployType.ROCK_WARRIOR, RockAxeWeapon.class, false));
+                deploy_containers.put(DeployType.IRON_WARRIOR, new ShipDeployContainer(this, 1.5f,
+                        DeployType.IRON_WARRIOR, IronAxeWeapon.class, false));
+                deploy_containers.put(DeployType.RUBBER_WARRIOR, new ShipDeployContainer(this, 2f,
+                        DeployType.RUBBER_WARRIOR, RubberAxeWeapon.class, false));
+                deploy_containers.put(DeployType.PEON, new ShipDeployContainer(this, .5f, DeployType.PEON, null,
+                        false));
+                deploy_containers.put(DeployType.PEON_HARVEST_TREE, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_HARVEST_TREE, null, false));
+                deploy_containers.put(DeployType.PEON_TRANSPORT_TREE, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_TRANSPORT_TREE, TreeSupply.class, true));
+                deploy_containers.put(DeployType.PEON_HARVEST_ROCK, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_HARVEST_ROCK, null, false));
+                deploy_containers.put(DeployType.PEON_TRANSPORT_ROCK, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_TRANSPORT_ROCK, RockSupply.class, true));
+                deploy_containers.put(DeployType.PEON_HARVEST_IRON, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_HARVEST_IRON, null, false));
+                deploy_containers.put(DeployType.PEON_TRANSPORT_IRON, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_TRANSPORT_IRON, IronSupply.class, true));
+                deploy_containers.put(DeployType.PEON_HARVEST_RUBBER, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_HARVEST_RUBBER, null, false));
+                deploy_containers.put(DeployType.PEON_TRANSPORT_RUBBER, new ShipDeployContainer(this, .5f,
+                        DeployType.PEON_TRANSPORT_RUBBER, RubberSupply.class, true));
             }
         }
     }
@@ -571,7 +580,6 @@ public class Ship extends Building implements Movable {
     protected void setTarget(@NonNull Target target, @NonNull Action action, boolean aggressive) {
         forceDecide();
         clearControllerStack();
-        removeProxy();
         pushController(new SailController(this, target));
         free();
         occupy();
@@ -747,7 +755,7 @@ public class Ship extends Building implements Movable {
             }
         }
 
-        createProxy();
+        updateProxy();
     }
 
     public final void free() {
@@ -866,11 +874,21 @@ public class Ship extends Building implements Movable {
     }
 
     public final boolean isMoving() {
-        return (getCurrentBehaviour() instanceof SailBehaviour);
+        return (getCurrentController() instanceof SailController);
+    }
+
+    public final void debugRender() {
+        if (getCurrentBehaviour() instanceof SailBehaviour sail) {
+            sail.getTrajectory().debugRender(getUnitGrid().getHeightMap());
+        }
     }
 
     public final PathTracker getTracker() {
         return null;
+    }
+
+    public final void reportStuck() {
+        forceDecide();
     }
 
     public final void endTrip() {
@@ -880,6 +898,19 @@ public class Ship extends Building implements Movable {
         updateBounds();
         reregister();
         occupy();
+    }
+
+    public boolean slid() {
+        return slid;
+    }
+
+    public final void endSlide() {
+        forceDecide();
+        free();
+        updateBounds();
+        reregister();
+        occupy();
+        slid = true;
     }
 
     public final void setPosition(float x, float y) {

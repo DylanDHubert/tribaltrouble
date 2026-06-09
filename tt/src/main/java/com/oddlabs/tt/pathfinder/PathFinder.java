@@ -22,8 +22,7 @@ public final class PathFinder {
 
     public static Region findPathRegion(@NonNull UnitGrid unit_grid, @NonNull PathFinderAlgorithm finder,
             @NonNull Region current_region) {
-//		Node current_region = UnitGrid.getGrid().getRegion(src_grid_x, src_grid_y);
-        assert current_region != null;// : "src_grid_x = " + src_grid_x + " | src_grid_y = " + src_grid_y + " | occupant " + UnitGrid.getGrid().getOccupant(src_grid_x, src_grid_y);
+        if (current_region == null) return null;
         return (Region) doFindPath(finder, current_region, unit_grid);
     }
 

@@ -13,7 +13,6 @@ public final class BuildingSiteRenderer extends ShadowRenderer {
     private final @NonNull Texture texture;
     private boolean sea = false;
 
-
     public BuildingSiteRenderer() {
         GLIntImage img = new GLIntImage(16, 16, GL11.GL_RGBA);
         img.clear(1, 1, img.getWidth() - 2, img.getHeight() - 2, Color.WHITE_INT);

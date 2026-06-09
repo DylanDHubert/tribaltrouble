@@ -6,6 +6,10 @@ import com.oddlabs.tt.util.Target;
 public final class SailController extends Controller {
     private final Ship ship;
     private final Target target;
+    private boolean backwards = false;
+    private int trials = 0;
+
+    private static final int MAX_TRIALS = 10;
 
     public SailController(Ship ship, Target t) {
         super(1);
@@ -18,17 +22,27 @@ public final class SailController extends Controller {
             return;
         }
         if (shouldGiveUp(0)) {
-            ship.popController();
+            if (trials == MAX_TRIALS) {
+                ship.popController();
+            } else {
+                trials++;
+                backwards = !backwards;
+                setBehaviour();
+            }
         } else {
-            ship.setBehaviour(new SailBehaviour(ship, target, 0f));
+            if (!ship.slid()) {
+                ship.setBehaviour(new ShipSlideBehaviour(ship));
+            } else {
+                setBehaviour();
+            }
         }
     }
 
-    public final boolean isAgressive() {
-        return false;
-    }
-
-    public final Target getTarget() {
-        return target;
+    private void setBehaviour() {
+        if (backwards) {
+            ship.setBehaviour(new ReverseSailBehaviour(ship));
+        } else {
+            ship.setBehaviour(new SailBehaviour(ship, target));
+        }
     }
 }

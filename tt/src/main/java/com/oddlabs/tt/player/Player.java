@@ -525,7 +525,8 @@ public final class Player implements PlayerInterface {
         if (grid_x < 0 || grid_x >= grid_size || grid_y < 0 || grid_y >= grid_size) return;
         Target target = new LandscapeTarget(grid_x, grid_y);
         for (int i = 0; i < selection.length; i++) {
-            if (isValid(selection[i])) selection[i].initTarget(target, Action.MOVE, false);
+            if (isValid(selection[i]))
+                selection[i].initTarget(target, Action.MOVE, false);
         }
     }
 
