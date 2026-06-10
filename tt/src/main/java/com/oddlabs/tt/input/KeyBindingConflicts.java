@@ -83,7 +83,7 @@ public final class KeyBindingConflicts {
             @NonNull InputManager manager) {
         Set<GameAction> peers = CONFLICT_MAP.get(action);
         if (peers == null) return List.of();
-        List<InputBinding> mine = manager.getBindings(action);
+        Set<InputBinding> mine = manager.getBindings(action);
         if (mine.isEmpty()) return List.of();
         List<GameAction> conflicts = new ArrayList<>();
         outer:

@@ -3,12 +3,12 @@ package com.oddlabs.tt.input;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -19,6 +19,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Manages game action keybindings, state, and serialization.
+ */
 public final class InputManager {
     private static final Logger logger = Logger.getLogger(InputManager.class.getName());
     private static final Map<GameAction, Set<InputBinding>> DEFAULT_BINDINGS = new EnumMap<>(GameAction.class);
@@ -226,7 +229,7 @@ public final class InputManager {
                 action));
     }
 
-    private final List<@NonNull InputBinding> bindings = new ArrayList<>();
+    private final Set<@NonNull InputBinding> bindings = new CopyOnWriteArraySet<>();
     private final Set<@NonNull GameAction> activeActions = EnumSet.noneOf(GameAction.class);
     private final Map<@NonNull Key, @NonNull Set<@NonNull GameAction>> keyState = new EnumMap<>(Key.class);
 
@@ -236,9 +239,7 @@ public final class InputManager {
 
     public void loadDefaultBindings() {
         bindings.clear();
-        for (Set<InputBinding> set : DEFAULT_BINDINGS.values()) {
-            bindings.addAll(set);
-        }
+        DEFAULT_BINDINGS.values().forEach(bindings::addAll);
     }
 
     public void loadBindings(@NonNull Properties props) {
@@ -276,7 +277,7 @@ public final class InputManager {
             Set<InputBinding> current = currentMap.get(action);
             Set<InputBinding> defaults = DEFAULT_BINDINGS.get(action);
 
-            // Only save if different from defaults
+            // Only save if binding for action is different from defaults
             if (current != null && !Objects.equals(current, defaults)) {
                 props.setProperty("key_binding." + action.name(), serializeBindings(current));
             } else if (current == null && defaults != null) {
@@ -286,13 +287,15 @@ public final class InputManager {
         }
     }
 
-    public @NonNull List<InputBinding> getBindings(GameAction action) {
-        return bindings.stream().filter(b -> b.action() == action).collect(Collectors.toList());
+    public @NonNull Set<@NonNull InputBinding> getBindings(GameAction action) {
+        return bindings.stream()
+                .filter(b -> b.action() == action)
+                .collect(Collectors.toSet());
     }
 
-    public @NonNull List<@NonNull InputBinding> getDefaultBindings(GameAction action) {
-        Set<InputBinding> defaults = DEFAULT_BINDINGS.get(action);
-        return defaults == null ? new ArrayList<>() : new ArrayList<>(defaults);
+    public @NonNull Set<@NonNull InputBinding> getDefaultBindings(GameAction action) {
+        var defaults = DEFAULT_BINDINGS.get(action);
+        return defaults == null ? Set.of() : new CopyOnWriteArraySet<>(defaults);
     }
 
     public void setBindings(GameAction action, @NonNull Collection<InputBinding> newBindings) {
@@ -302,9 +305,7 @@ public final class InputManager {
 
     public void resetToDefaults() {
         bindings.clear();
-        for (Set<InputBinding> set : DEFAULT_BINDINGS.values()) {
-            bindings.addAll(set);
-        }
+        DEFAULT_BINDINGS.values().forEach(bindings::addAll);
     }
 
     public @NonNull String exportBindings() {
@@ -329,11 +330,11 @@ public final class InputManager {
 
     public void importBindings(@NonNull String json) {
         // Regex to find "ACTION": [ ... ]
-        String patternStr = "\\\"(" + "(\\w+)" + ")\\\"" + "\\s*:\\s*" + "(\\[[^\\]]*\\])";
+        String patternStr = "\\\"(\\w+)\\\"\\s*:\\s*(\\[[^\\]]*\\])";
         Pattern p = Pattern.compile(patternStr);
         Matcher m = p.matcher(json);
 
-        List<InputBinding> newBindings = new ArrayList<>();
+        Set<InputBinding> newBindings = new HashSet<>();
         boolean foundAny = false;
 
         while (m.find()) {
@@ -397,7 +398,7 @@ public final class InputManager {
             // Split by : or =
             String[] kv = pair.split("[:=]");
             if (kv.length != 2) continue;
-            String k = unquote(kv[0].trim());
+            String k = unquote(kv[0].trim()).toLowerCase(Locale.ROOT);
             String v = unquote(kv[1].trim());
 
             try {
