@@ -20,10 +20,15 @@ import org.joml.Vector4fc;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.opengl.GL11;
 
+import com.oddlabs.tt.landscape.IslandInfo;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public final class Landscape {
@@ -96,6 +101,7 @@ public final class Landscape {
 
     private List<int[]> island_locations;
     private ArrayList island_areas;
+    private final Map<Integer, IslandInfo> island_info = new LinkedHashMap<>();
 
     private final int num_players;
     private final int meters_per_world;
@@ -164,7 +170,7 @@ public final class Landscape {
                 access_threshold = 0.025f;
             }
             case 2048 -> {
-                size_multiplier = 64;
+                size_multiplier = 40;
                 height_scale = 76;
                 access_threshold = 0.02f;
             }
@@ -247,6 +253,9 @@ public final class Landscape {
             if (count[0] < MIN_ISLAND_AREA) {
                 // If not big enough, put it back
                 island_ids.floodfill(pos[0], pos[1], 0.0f, 0.01f, count);
+            } else {
+                IslandInfo info = new IslandInfo(last_id, count[0], pos[0], pos[1]);
+                island_info.put(last_id, info);
             }
             last_id++;
             island_locations.add(pos);
@@ -254,7 +263,7 @@ public final class Landscape {
         if (DEBUG) {
             island_ids.copy().multiply(1.0f / last_id).toLayer().saveAsPNG("island_ids");
         }
-        good_starts = island_ids.threshold(0.5f, last_id + 1.0f);
+        good_starts = island_ids.copy().threshold(0.5f, last_id + 1.0f);
 
         this.structures = new GLIntImage[layers.length];
         this.structure_normals = new GLIntImage[layers.length];
@@ -1348,6 +1357,55 @@ public final class Landscape {
 
     public final List<int[]> getIslandLocations() {
         return island_locations;
+    }
+
+    public int[][] getIslandIds() {
+        int size = island_ids.getWidth();
+        int[][] grid = new int[size][size];
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                grid[y][x] = (int) (island_ids.getPixel(x, y) + 0.5f);
+            }
+        }
+        return grid;
+    }
+
+    // Per-island metadata (area + tree/rock/iron supply counts) for every kept island. Area
+    // comes from the flood fill; resource counts are tallied by mapping each supply position
+    // to the island id underneath it.
+    public @NonNull List<IslandInfo> getIslandInfos() {
+        Map<Integer, int[]> counts = new HashMap<>();
+        countSuppliesPerIsland(trees, counts, 0);
+        countSuppliesPerIsland(rock, counts, 1);
+        countSuppliesPerIsland(iron, counts, 2);
+
+        List<IslandInfo> ret = new ArrayList<>();
+        for (Map.Entry<Integer, IslandInfo> entry : island_info.entrySet()) {
+            int id = entry.getKey();
+            IslandInfo info = entry.getValue();
+            int[] c = counts.get(id);
+            int num_trees = c != null ? c[0] : 0;
+            int num_rocks = c != null ? c[1] : 0;
+            int num_iron = c != null ? c[2] : 0;
+            info.setIron(num_iron);
+            info.setRocks(num_rocks);
+            info.setTrees(num_trees);
+            ret.add(info);
+        }
+
+        return ret;
+    }
+
+    private void countSuppliesPerIsland(@NonNull Channel channel, @NonNull Map<Integer, int[]> counts, int index) {
+        for (int y = 0; y < channel.height; y++) {
+            for (int x = 0; x < channel.width; x++) {
+                if (channel.getPixel(x, y) == 1f) {
+                    int id = (int) (island_ids.getPixel(x, y) + 0.5f);
+                    if (id != 0)
+                        counts.computeIfAbsent(id, k -> new int[3])[index]++;
+                }
+            }
+        }
     }
 
     public byte[][] getBuildGrid() {

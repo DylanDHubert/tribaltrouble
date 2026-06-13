@@ -16,7 +16,7 @@ public final class ShipSlideBehaviour implements Behaviour {
     private final Ship ship;
     private boolean blocked = false;
     private final ShipTrajectoryPoint curr;
-    private final ShipTrajectoryPoint end;
+    private ShipTrajectoryPoint end;
     private final float total_distance;
     private float curr_distance;
 
@@ -32,6 +32,11 @@ public final class ShipSlideBehaviour implements Behaviour {
         end = ShipTrajectory.getNearestGap(grid, curr, curr.moved(-20), 12, 12, 5);
 
         curr_distance = 0.0f;
+
+        if (end == null) {
+            end = curr.moved(-12);
+        }
+
         total_distance = curr.distanceTo(end);
     }
 
@@ -61,8 +66,8 @@ public final class ShipSlideBehaviour implements Behaviour {
         */
         blocked = false;
 
-        curr.move(-0.4f * t);
-        curr_distance += 0.4f * t;
+        curr.move(-1.4f * t);
+        curr_distance += 1.4f * t;
 
         ship.free();
         ship.setPosition(curr.positionX, curr.positionY);

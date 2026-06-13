@@ -13,6 +13,7 @@ public final class ShipTrajectory {
     private final UnitGrid grid;
 
     private final List<ShipTrajectorySegment> trajectory;
+    private List<ShipTrajectoryPoint> brokenDownPath;
 
     private boolean isComplete = true;
 
@@ -31,16 +32,17 @@ public final class ShipTrajectory {
         if (p3 != null) {
             p2 = p3.clone();
             p2.setDirectionTo(new ShipTrajectoryPoint(t));
-            p2.move(-5);
+            p2.move(-8);
         }
         ShipTrajectoryPoint p1 = null;
         p1 = p0.moved(10);
 
-        List<ShipTrajectoryPoint> brokenDownPath = null;
+        brokenDownPath = null;
         if (p1 != null && p2 != null) {
             brokenDownPath = breakDownPath(p1, p2, 0);
         }
 
+        if (DEBUG) System.out.println("==========================================");
         if (brokenDownPath != null) {
             optimizePath(brokenDownPath);
             brokenDownPath.add(p3);
@@ -49,6 +51,7 @@ public final class ShipTrajectory {
         } else {
             trajectory = null;
         }
+        if (DEBUG) System.out.println("==========================================");
     }
 
     public void debugRender(HeightMap heightmap) {
@@ -66,6 +69,11 @@ public final class ShipTrajectory {
             } else {
                 drawArc(segment, z);
             }
+        }
+        for (int i = 1; i < brokenDownPath.size(); i++) {
+            ShipTrajectoryPoint p0 = brokenDownPath.get(i - 1);
+            ShipTrajectoryPoint p1 = brokenDownPath.get(i);
+            DebugRender.drawLine(p0.positionX, p0.positionY, z, p1.positionX, p1.positionY, z, 1.0f, 0.0f, 0.0f);
         }
     }
 
@@ -124,70 +132,37 @@ public final class ShipTrajectory {
             return null;
         }
 
+        if (DEBUG) System.out.println("BREAKDOWN " + p0 + " " + p1);
+
         if (StrictMath.abs(p1.gridX - p0.gridX) <= 1 && StrictMath.abs(p1.gridY - p0.gridY) <= 1) {
-            List<ShipTrajectoryPoint> result = new ArrayList<ShipTrajectoryPoint>();
-            result.add(p0);
-            result.add(p1);
-            return result;
+            return null;
         }
 
-        if (!checkCollisionOnLine(grid, ship, p0, p1, 6)) {
+        ShipTrajectoryPoint coll = firstCollision(grid, ship, p0, p1, 6);
+        if (coll == null) {
             List<ShipTrajectoryPoint> result = new ArrayList<ShipTrajectoryPoint>();
             result.add(p0);
             result.add(p1);
+            if (DEBUG) System.out.println("ADD " + p0 + " " + p1);
             return result;
         } else {
-            ShipTrajectoryPoint pmid = new ShipTrajectoryPoint(
-                    (int) StrictMath.round((p0.gridX + p1.gridX) * 0.5f),
-                    (int) StrictMath.round((p0.gridY + p1.gridY) * 0.5f));
+            coll.setDirectionTo(p1);
 
-            float dir_x = p1.gridX - p0.gridX;
-            float dir_y = p1.gridY - p0.gridY;
-            float len = (float) StrictMath.sqrt(dir_x * dir_x + dir_y * dir_y);
-            if (len < 0.001f) {
-                List<ShipTrajectoryPoint> result = new ArrayList<ShipTrajectoryPoint>();
-                result.add(p0);
-                result.add(p1);
-                return result;
+            ShipTrajectoryPoint pleft = coll.rotated(90).moved(1000);
+            ShipTrajectoryPoint pright = coll.rotated(-90).moved(1000);
+            ShipTrajectoryPoint gap1 = getNearestGap(grid, coll, pleft, 20, 50, 6);
+            ShipTrajectoryPoint gap2 = getNearestGap(grid, coll, pright, 20, 50, 6);
+
+            if (DEBUG) {
+                System.out.println("TRY " + coll + " " + pleft);
+                System.out.println("TRY " + coll + " " + pright);
             }
-
-            dir_x /= len;
-            dir_y /= len;
-            float perp_x = -dir_y;
-            float perp_y = dir_x;
-            int grid_size = ship.getUnitGrid().getGridSize();
-            int reach = grid_size;
-            int pleftx = (int) StrictMath.max(
-                    0,
-                    StrictMath.min(
-                            grid_size - 1,
-                            StrictMath.round(pmid.gridX + perp_x * reach)));
-            int plefty = (int) StrictMath.max(
-                    0,
-                    StrictMath.min(
-                            grid_size - 1,
-                            StrictMath.round(pmid.gridY + perp_y * reach)));
-            int prightx = (int) StrictMath.max(
-                    0,
-                    StrictMath.min(
-                            grid_size - 1,
-                            StrictMath.round(pmid.gridX - perp_x * reach)));
-            int prighty = (int) StrictMath.max(
-                    0,
-                    StrictMath.min(
-                            grid_size - 1,
-                            StrictMath.round(pmid.gridY - perp_y * reach)));
-
-            ShipTrajectoryPoint pleft = new ShipTrajectoryPoint(pleftx, plefty);
-            ShipTrajectoryPoint pright = new ShipTrajectoryPoint(prightx, prighty);
-            ShipTrajectoryPoint gap1 = getNearestGap(grid, pmid, pleft, 20, 50, 6);
-            ShipTrajectoryPoint gap2 = getNearestGap(grid, pmid, pright, 20, 50, 6);
 
             ShipTrajectoryPoint closest;
             if (gap1 != null && gap2 != null) {
-                float gap1dist2 = gap1.gridDistanceTo(pmid);
-                float gap2dist2 = gap2.gridDistanceTo(pmid);
-                if (gap1dist2 <= gap2dist2) {
+                float gap1dist = gap1.gridDistanceTo(coll);
+                float gap2dist = gap2.gridDistanceTo(coll);
+                if (gap1dist <= gap2dist) {
                     closest = gap1;
                 } else {
                     closest = gap2;
@@ -342,11 +317,11 @@ public final class ShipTrajectory {
 
     public static ShipTrajectoryPoint pickTargetPosition(UnitGrid grid, Occupant self, Target target) {
         ShipTrajectoryPoint pt = new ShipTrajectoryPoint(target);
-        float bestDist = 100.0f;
+        float bestDist = 2000.0f;
         ShipTrajectoryPoint bestGap = null;
         for (int i = 0; i < 48; i++) {
             float angle = i * 7.5f;
-            ShipTrajectoryPoint gap = getNearestGap(grid, pt, pt.rotated(angle).moved(20), 12, 12, 6);
+            ShipTrajectoryPoint gap = getNearestGap(grid, pt, pt.rotated(angle).moved(1024), 12, 12, 6);
             if (gap != null) {
                 float dist = gap.distanceTo(pt);
                 if (dist < bestDist) {
@@ -451,7 +426,7 @@ public final class ShipTrajectory {
         if (x < 0 || x >= grid_size || y < 0 || y >= grid_size) {
             return true;
         }
-        if (!grid.isWater(x, y)) {
+        if (!grid.isWater(x, y) || grid.isDockable(x, y)) {
             return true;
         }
         Occupant occ = grid.getOccupant(x, y, UnitGrid.SEA);
@@ -466,7 +441,7 @@ public final class ShipTrajectory {
         return checkCollisionOnLine(grid, ship, p0, p1, thickness);
     }
 
-    public static boolean checkCollisionOnLine(
+    public static ShipTrajectoryPoint firstCollision(
             UnitGrid grid, Occupant self, ShipTrajectoryPoint p0, ShipTrajectoryPoint p1, int thickness) {
         final int half_thickness = thickness / 2;
 
@@ -481,11 +456,11 @@ public final class ShipTrajectory {
                         continue;
                     }
                     if (collisionOnCell(grid, self, p0.gridX + ox, p0.gridY + oy)) {
-                        return true;
+                        return p0;
                     }
                 }
             }
-            return false;
+            return null;
         }
 
         dir_x /= length;
@@ -500,7 +475,7 @@ public final class ShipTrajectory {
                 int check_x = (int) StrictMath.round(center_x + perp_x * offset);
                 int check_y = (int) StrictMath.round(center_y + perp_y * offset);
                 if (collisionOnCell(grid, self, check_x, check_y)) {
-                    return true;
+                    return new ShipTrajectoryPoint(check_x, check_y);
                 }
             }
         }
@@ -509,10 +484,15 @@ public final class ShipTrajectory {
             int check_x = (int) StrictMath.round(p1.gridX + perp_x * offset);
             int check_y = (int) StrictMath.round(p1.gridY + perp_y * offset);
             if (collisionOnCell(grid, self, check_x, check_y)) {
-                return true;
+                return new ShipTrajectoryPoint(check_x, check_y);
             }
         }
 
-        return false;
+        return null;
+    }
+
+    public static boolean checkCollisionOnLine(
+            UnitGrid grid, Occupant self, ShipTrajectoryPoint p0, ShipTrajectoryPoint p1, int thickness) {
+        return firstCollision(grid, self, p0, p1, thickness) != null;
     }
 }

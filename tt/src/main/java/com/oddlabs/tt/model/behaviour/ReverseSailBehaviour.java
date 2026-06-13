@@ -63,8 +63,16 @@ public final class ReverseSailBehaviour implements Behaviour {
 
         ShipTrajectoryPoint shipPt = new ShipTrajectoryPoint(ship);
 
+        int rowers = ship.getShipHR().countRowers();
+        if (rowers == 0) {
+            ship.endTrip();
+            return State.DONE;
+        }
+
+        float step = rowers * 0.2f * t;
+
         // If it's blocked behind the ship
-        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(-1.2f * t), 5)) {
+        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(-step), 5)) {
             ship.reportStuck();
             return State.INTERRUPTIBLE;
         }
@@ -75,8 +83,8 @@ public final class ReverseSailBehaviour implements Behaviour {
             return State.INTERRUPTIBLE;
         }
 
-        curr.move(-0.8f * t);
-        curr_distance += 0.8f * t;
+        curr.move(-step);
+        curr_distance += step;
 
         ship.free();
         ship.setPosition(curr.positionX, curr.positionY);

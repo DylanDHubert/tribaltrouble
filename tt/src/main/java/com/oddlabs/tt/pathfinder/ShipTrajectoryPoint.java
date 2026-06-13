@@ -226,6 +226,6 @@ public final class ShipTrajectoryPoint {
 
     @Override
     public String toString() {
-        return "ShipTrajectoryPoint(pos: " + positionX + "," + positionY + " / dir: " + directionX + "," + directionY + ")";
+        return gridX + " " + gridY;
     }
 }

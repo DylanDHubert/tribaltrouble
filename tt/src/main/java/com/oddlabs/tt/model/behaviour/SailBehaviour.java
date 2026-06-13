@@ -9,7 +9,7 @@ import com.oddlabs.tt.util.Target;
 import org.jspecify.annotations.NonNull;
 
 public final class SailBehaviour implements Behaviour {
-    private static final float SHIP_SPEED = 0.2f;
+    private static final float SHIP_SPEED = 0.45f;
     private static final int NO_COLLISION = 0;
     private static final int RESOLVABLE_COLLISION = 1;
     private static final int UNRESOLVABLE_COLLISION = 2;

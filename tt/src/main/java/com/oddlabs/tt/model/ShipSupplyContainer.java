@@ -13,4 +13,9 @@ public final class ShipSupplyContainer extends SupplyContainer {
     public int getNumSupplies() {
         return ship_hr.countUnitsOfType(type);
     }
+
+    public int capAmount(int amount) {
+        int supplies = getNumSupplies();
+        return Math.clamp(supplies + amount, 0, max_supply_count) - supplies;
+    }
 }

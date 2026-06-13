@@ -6,7 +6,10 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.opengl.GL11;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class HeightMap {
     public static final int METERS_PER_UNIT_GRID = 2;
@@ -24,6 +27,8 @@ public final class HeightMap {
     private final boolean[][] water_grid;
     private final Channel sea_cost_map;
     private final List<int[]> island_locations;
+    private final int[][] island_ids;
+    private final Map<Integer, IslandInfo> island_info;
     private final byte[][] build_grid;
     private final int meters_per_world;
     private final int patches_per_world;
@@ -53,7 +58,9 @@ public final class HeightMap {
             boolean[][] dock_grid,
             boolean[][] water_grid,
             Channel sea_cost_map,
-            byte[][] build_grid) {
+            byte[][] build_grid,
+            int[][] island_ids,
+            List<IslandInfo> island_infos) {
         this.world = world;
         this.world_instance = world_instance;
         this.trees = trees;
@@ -63,6 +70,11 @@ public final class HeightMap {
         this.sea_cost_map = sea_cost_map;
         this.build_grid = build_grid;
         this.island_locations = island_locations;
+        this.island_ids = island_ids;
+        Map<Integer, IslandInfo> island_info_map = new LinkedHashMap<>();
+        for (IslandInfo info : island_infos)
+            island_info_map.put(info.id(), info);
+        this.island_info = island_info_map;
         this.meters_per_world = meters_per_world;
         this.sea_level_meters = sea_level_meters;
         patches_per_world = world.length / GRID_UNITS_PER_PATCH;
@@ -194,6 +206,37 @@ public final class HeightMap {
 
     public final List<int[]> getIslandLocations() {
         return island_locations;
+    }
+
+    public final int[][] getIslandIdGrid() {
+        return island_ids;
+    }
+
+    public final int getIslandId(int grid_x, int grid_y) {
+        return island_ids[wrapGridCoord(grid_y)][wrapGridCoord(grid_x)];
+    }
+
+    public final List<Integer> getIslandIds() {
+        return new ArrayList<>(island_info.keySet());
+    }
+
+    public final IslandInfo getIslandInfo(int island_id) {
+        return island_info.get(island_id);
+    }
+
+    public final int getIslandTreeCount(int island_id) {
+        IslandInfo info = island_info.get(island_id);
+        return info != null ? info.trees() : 0;
+    }
+
+    public final int getIslandRockCount(int island_id) {
+        IslandInfo info = island_info.get(island_id);
+        return info != null ? info.rocks() : 0;
+    }
+
+    public final int getIslandIronCount(int island_id) {
+        IslandInfo info = island_info.get(island_id);
+        return info != null ? info.iron() : 0;
     }
 
     void makePlaneVector(int x0, int y0, int x1, int y1, int x2, int y2, @NonNull Vector3f plane) {

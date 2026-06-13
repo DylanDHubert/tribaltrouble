@@ -106,7 +106,9 @@ public final class IslandGenerator implements WorldGenerator {
                 landscape.getTrees(), landscape.getPalmtrees(), landscape.getRock(), landscape.getIron(),
                 landscape.getPlants(),
                 landscape.getAccessGrid(), landscape.getDockGrid(), landscape.getWaterGrid(), landscape.getSeaCostMap(),
-                landscape.getBuildGrid(), landscape.getIslandLocations(), landscape.getStartingLocations(),
+                landscape.getBuildGrid(), landscape.getIslandLocations(), landscape.getIslandIds(),
+                landscape.getIslandInfos(),
+                landscape.getStartingLocations(),
                 blend_infos);
     }
 }

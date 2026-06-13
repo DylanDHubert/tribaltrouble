@@ -266,7 +266,7 @@ public final class LandBuilding extends Building {
             getUnitContainer().prepareDeploy(-1);
             getUnitContainer().exit();
             Unit unit = createUnit(null, race.getUnitTemplate(Race.UNIT_PEON));
-            unit.pushController(new GatherController<>(unit, null, supply_type));
+            unit.pushController(new GatherController<>(unit, null, supply_type, this));
         }
     }
 
@@ -719,7 +719,7 @@ public final class LandBuilding extends Building {
 
     @Override
     public @NonNull String toString() {
-        return "Building: isDead() = " + isDead();
+        return "Building at " + getGridX() + "," + getGridY();
     }
 
     public void fillSupplies(@NonNull Class<?> key, int max) {

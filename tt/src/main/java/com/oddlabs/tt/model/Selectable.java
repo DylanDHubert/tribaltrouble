@@ -251,6 +251,10 @@ public abstract class Selectable<T extends Template> extends Model implements Ta
         return grid_y;
     }
 
+    public final int getIslandId() {
+        return getUnitGrid().getIslandId(grid_x, grid_y);
+    }
+
     public final void setGridPosition(int grid_x, int grid_y) {
         assert !isDead();
         assert owner.getWorld().getHeightMap().isGridInside(grid_x,

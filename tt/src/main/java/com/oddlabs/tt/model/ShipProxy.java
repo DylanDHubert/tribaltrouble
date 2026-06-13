@@ -247,7 +247,7 @@ public final class ShipProxy extends Building {
     }
 
     public final String toString() {
-        return "ShipProxy: to " + ship;
+        return "ShipProxy at " + getGridX() + "," + getGridY() + " for " + ship;
     }
 
     public final void printDebugInfo() {

@@ -306,7 +306,7 @@ public class Ship extends Building implements Movable {
         int cx = UnitGrid.toGridCoordinate(getPositionX() + getDirectionX() * half_length_meters);
         int cy = UnitGrid.toGridCoordinate(getPositionY() + getDirectionY() * half_length_meters);
         int grid_size = grid.getGridSize();
-        for (int radius = 0; radius <= 4; radius++) {
+        for (int radius = 0; radius <= 8; radius++) {
             for (int dy = -radius; dy <= radius; dy++) {
                 for (int dx = -radius; dx <= radius; dx++) {
                     int nx = cx + dx;
@@ -315,6 +315,7 @@ public class Ship extends Building implements Movable {
                         continue;
                     }
                     if (grid.getRegion(nx, ny, UnitGrid.LAND) != null
+                            && !grid.isWater(nx, ny)
                             && (!grid.isGridOccupied(nx, ny, UnitGrid.LAND)
                                     || grid.getOccupant(nx, ny, UnitGrid.LAND) == proxy)) {
                         if (proxy != null && !proxy.isDead()) {
@@ -657,7 +658,7 @@ public class Ship extends Building implements Movable {
     }
 
     public final boolean isValidRallyPoint(Target t) {
-        if (!(t instanceof Building || t instanceof Ship)) return false;
+        if (!(t instanceof Building)) return false;
         Building b = (Building) t;
         if (b != null) {
             return getOwner() == b.getOwner() && b.getAbilities().hasAbilities(Abilities.RALLY_TO);
@@ -821,7 +822,7 @@ public class Ship extends Building implements Movable {
     }
 
     public final String toString() {
-        return "Ship: isDead() = " + isDead();
+        return "Ship at " + getGridX() + "," + getGridY();
     }
 
     public final float getAnimationTicks() {

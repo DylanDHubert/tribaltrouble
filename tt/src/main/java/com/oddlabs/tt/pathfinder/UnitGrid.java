@@ -7,6 +7,8 @@ import org.joml.Vector4fc;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 public final class UnitGrid {
     private final @NonNull HeightMap heightmap;
 
@@ -153,6 +155,32 @@ public final class UnitGrid {
 
     public final boolean isDockable(int grid_x, int grid_y) {
         return heightmap.getDockGrid()[grid_y][grid_x];
+    }
+
+    public final int getIslandId(int grid_x, int grid_y) {
+        return heightmap.getIslandId(grid_x, grid_y);
+    }
+
+    public final List<Integer> getIslandIds() {
+        return heightmap.getIslandIds();
+    }
+
+    public final com.oddlabs.tt.landscape.IslandInfo getIslandInfo(int island_id) {
+        return heightmap.getIslandInfo(island_id);
+    }
+
+    // Number of tree supplies on the given island.
+    public final int getIslandTreeCount(int island_id) {
+        return heightmap.getIslandTreeCount(island_id);
+    }
+
+    // Number of rock supplies on the given island.
+    public final int getIslandRockCount(int island_id) {
+        return heightmap.getIslandRockCount(island_id);
+    }
+
+    public final int getIslandIronCount(int island_id) {
+        return heightmap.getIslandIronCount(island_id);
     }
 
     public void freeGrid(int grid_x, int grid_y, Occupant occupant) {
