@@ -676,15 +676,14 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
 
         if (pressed) {
             if (!repeat) {
-                if (event.consumeAction(GameAction.UNIT_MOVE)) {
-                    if (current_unit) {
-                        activate(event, move_button);
-                    }
+                if (current_unit && event.consumeAction(GameAction.UNIT_MOVE)) {
+                    activate(event, move_button);
                 } else if (current_unit && current_peon && event.consumeAction(GameAction.UNIT_BUILD_QUARTERS)) {
                     // Only consume the quarters key when a peon is selected; otherwise let it fall
                     // through so a rebound PROD_HARVEST sharing the same key still reaches the armory.
                     activate(event, quarters_button);
-                } else if (event.consumeAction(GameAction.UNIT_ATTACK) || event.consumeAction(GameAction.PROD_ARMY)) {
+                } else if ((current_unit || (current_armory && current_submenu == null) || current_tower)
+                        && (event.consumeAction(GameAction.UNIT_ATTACK) || event.consumeAction(GameAction.PROD_ARMY))) {
                     // A - Attack or Army
                     if (current_unit) {
                         activate(event, attack_button);
@@ -693,48 +692,45 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                     } else if (current_tower) {
                         activate(event, tower_attack_button);
                     }
-                } else if (event.consumeAction(GameAction.UNIT_GATHER) || event.consumeAction(
-                        GameAction.PROD_HARVEST)) {
+                } else if ((current_unit || current_armory)
+                        && (event.consumeAction(GameAction.UNIT_GATHER) || event.consumeAction(GameAction.PROD_HARVEST))) {
                             // G - Gather or Harvest
                             if (current_unit) {
                                 activate(event, gather_repair_button);
                             } else if (current_armory) {
                                 activate(event, harvest_button);
                             }
-                        } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
-                                GameAction.PROD_TRANSPORT)) {
+                        } else if ((current_peon || (current_armory && current_submenu == null))
+                                && (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(GameAction.PROD_TRANSPORT))) {
                                     // T - Tower or Transport
                                     if (current_peon) {
                                         activate(event, tower_button);
                                     } else if (current_armory && current_submenu == null) {
                                         activate(event, transport_button);
                                     }
-                                } else if (event.consumeAction(GameAction.TRAIN_CHIEFTAIN)) {
-                                    if (current_quarters) {
-                                        activate(event, quarters_chieftain_button);
+                                } else if (current_quarters && event.consumeAction(GameAction.TRAIN_CHIEFTAIN)) {
+                                    // Only consume the train-chieftain key in the quarters; otherwise let it
+                                    // fall through so MAGIC_2 (shares C by default) still casts with a chieftain.
+                                    activate(event, quarters_chieftain_button);
+                                } else if (current_chieftain != null && event.consumeAction(GameAction.MAGIC_2)) {
+                                    // C - Magic 2
+                                    if (viewer.getLocalPlayer().canDoMagic(1)) {
+                                        activate(event, magic2_button);
                                     }
-                                } else if (event.consumeAction(GameAction.MAGIC_2)) {
-                                    if (current_chieftain != null) {
-                                        Player player = viewer.getLocalPlayer();
-                                        if (player.canDoMagic(1)) {
-                                            activate(event, magic2_button);
-                                        }
-                                    }
-                                } else if (event.consumeAction(GameAction.PROD_WEAPONS)) {
-                                    if (current_armory && current_submenu == null)
-                                        activate(event, build_button);
-                                } else if (event.consumeAction(GameAction.GAMEPLAY_BACK)) {
-                                    // Backspace
-                                    if (current_armory && current_submenu != null) {
-                                        if (current_submenu == harvest_group)
-                                            activate(event, harvest_back_button);
-                                        else if (current_submenu == build_group)
-                                            activate(event, build_back_button);
-                                        else if (current_submenu == army_group)
-                                            activate(event, army_back_button);
-                                        else if (current_submenu == transport_group)
-                                            activate(event, transport_back_button);
-                                    }
+                                } else if (current_armory && current_submenu == null
+                                        && event.consumeAction(GameAction.PROD_WEAPONS)) {
+                                    activate(event, build_button);
+                                } else if (current_armory && current_submenu != null
+                                        && event.consumeAction(GameAction.GAMEPLAY_BACK)) {
+                                    // Backspace - back out of an armory submenu
+                                    if (current_submenu == harvest_group)
+                                        activate(event, harvest_back_button);
+                                    else if (current_submenu == build_group)
+                                        activate(event, build_back_button);
+                                    else if (current_submenu == army_group)
+                                        activate(event, army_back_button);
+                                    else if (current_submenu == transport_group)
+                                        activate(event, transport_back_button);
                                 } else if (current_building == null && event.consumeAction(
                                         GameAction.UNIT_BUILD_ARMORY)) {
                                             if (current_peon) activate(event, armory_button);
@@ -744,18 +740,14 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                                         activate(event, rally_point_button);
                                                     else if (current_quarters)
                                                         activate(event, quarters_rally_point_button);
-                                                } else if (event.consumeAction(GameAction.UNIT_EXIT_TOWER)) {
+                                                } else if (current_tower && event.consumeAction(GameAction.UNIT_EXIT_TOWER)) {
                                                     // X - Exit Tower
-                                                    if (current_tower) {
-                                                        activate(event, tower_exit_button);
-                                                    }
-                                                } else if (event.consumeAction(GameAction.MAGIC_1)) {
+                                                    activate(event, tower_exit_button);
+                                                } else if (current_chieftain != null
+                                                        && event.consumeAction(GameAction.MAGIC_1)) {
                                                     // S - Magic 1
-                                                    if (current_chieftain != null) {
-                                                        Player player = viewer.getLocalPlayer();
-                                                        if (player.canDoMagic(0)) {
-                                                            activate(event, magic1_button);
-                                                        }
+                                                    if (viewer.getLocalPlayer().canDoMagic(0)) {
+                                                        activate(event, magic1_button);
                                                     }
                                                 }
 
