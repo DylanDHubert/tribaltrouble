@@ -244,21 +244,23 @@ public final class InputManager {
 
     public void loadBindings(@NonNull Properties props) {
         bindings.clear();
+
         for (GameAction action : GameAction.values()) {
             String key = "key_binding." + action.name();
             String value = props.getProperty(key);
+
             if (value != null) {
+                // Property exists (even if empty) - respect user's choice (including unbound)
                 try {
                     Set<InputBinding> loaded = parseBindings(value, action);
-                    if (!loaded.isEmpty()) {
-                        bindings.addAll(loaded);
-                        continue;
-                    }
+                    bindings.addAll(loaded);   // Add even if empty (unbound)
+                    continue;
                 } catch (Exception e) {
                     logger.warning("Failed to parse binding for " + action + ": " + value + ". Using defaults.");
                 }
             }
-            // Fallback to default if property missing or parsing failed/empty
+
+            // Only fall back to defaults if the property is completely missing
             Set<InputBinding> defaults = DEFAULT_BINDINGS.get(action);
             if (defaults != null) {
                 bindings.addAll(defaults);
@@ -267,7 +269,6 @@ public final class InputManager {
     }
 
     public void saveBindings(@NonNull Properties props) {
-        // Group current bindings by action
         Map<GameAction, Set<InputBinding>> currentMap = new EnumMap<>(GameAction.class);
         for (InputBinding b : bindings) {
             currentMap.computeIfAbsent(b.action(), k -> new CopyOnWriteArraySet<>()).add(b);
@@ -277,11 +278,15 @@ public final class InputManager {
             Set<InputBinding> current = currentMap.get(action);
             Set<InputBinding> defaults = DEFAULT_BINDINGS.get(action);
 
-            // Only save if binding for action is different from defaults
-            if (current != null && !Objects.equals(current, defaults)) {
-                props.setProperty("key_binding." + action.name(), serializeBindings(current));
-            } else if (current == null && defaults != null) {
-                // To support "unbound", we have to save empty list.
+            if (current != null) {
+                if (current.isEmpty()) {
+                    // Explicitly save empty list for unbound actions
+                    props.setProperty("key_binding." + action.name(), "[]");
+                } else if (!Objects.equals(current, defaults)) {
+                    props.setProperty("key_binding." + action.name(), serializeBindings(current));
+                }
+            } else if (defaults != null) {
+                // No current binding - save empty to remember it was cleared
                 props.setProperty("key_binding." + action.name(), "[]");
             }
         }
