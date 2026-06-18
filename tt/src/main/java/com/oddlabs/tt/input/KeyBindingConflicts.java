@@ -31,8 +31,8 @@ public final class KeyBindingConflicts {
     private static final GameAction[] UNIT_CONTEXT = {GameAction.UNIT_MOVE, GameAction.UNIT_ATTACK, GameAction.UNIT_GATHER, GameAction.UNIT_BUILD_QUARTERS, GameAction.UNIT_BUILD_ARMORY, GameAction.UNIT_BUILD_TOWER, GameAction.UNIT_EXIT_TOWER, GameAction.MAGIC_1, GameAction.MAGIC_2, GameAction.GAMEPLAY_BACK,
     };
 
-    // Armory/Quarters top-level: production category, set-rally, train chieftain, train peon (peon batch lives here too).
-    private static final GameAction[] BUILDING_CONTEXT = {GameAction.PROD_WEAPONS, GameAction.PROD_HARVEST, GameAction.PROD_ARMY, GameAction.PROD_TRANSPORT, GameAction.UNIT_SET_RALLY, GameAction.TRAIN_CHIEFTAIN, GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC,
+    // Armory/Quarters top-level: production category, set-rally, train chieftain,
+    private static final GameAction[] BUILDING_CONTEXT = {GameAction.PROD_WEAPONS, GameAction.PROD_HARVEST, GameAction.PROD_ARMY, GameAction.PROD_TRANSPORT, GameAction.UNIT_SET_RALLY, GameAction.TRAIN_CHIEFTAIN,
     };
 
     // Resource sub-menus (harvest / transport / weapons all share the same resource keys by design).
@@ -42,12 +42,17 @@ public final class KeyBindingConflicts {
     // UI navigation: active inside modal forms / focus traversal. A separate mode, so its keys may double as in-game keys.
     private static final GameAction[] UI_NAV = {GameAction.UI_ACTIVATE, GameAction.UI_CANCEL, GameAction.UI_FOCUS_NEXT, GameAction.UI_FOCUS_PREV, GameAction.UI_NEXT_PANEL, GameAction.UI_PREV_PANEL, GameAction.UI_NAV_UP, GameAction.UI_NAV_DOWN, GameAction.UI_NAV_LEFT, GameAction.UI_NAV_RIGHT, GameAction.UI_NAV_HOME, GameAction.UI_NAV_END, GameAction.UI_NAV_PAGE_UP, GameAction.UI_NAV_PAGE_DOWN, GameAction.UI_BACKSPACE, GameAction.UI_DELETE,
     };
+    // Army/Quarters peon training: active only inside army submenu or quarters building.
+    // Separated peon context from building context..
+    private static final GameAction[] PEON_CONTEXT = {GameAction.TRAIN_PEON,GameAction.TRAIN_PEON_DEC,GameAction.TRAIN_PEON_BATCH,GameAction.TRAIN_PEON_BATCH_DEC,
+    };
 
     // In-game selection contexts. Mutually exclusive with each other (you have a unit XOR a building
     // selected), so they may safely reuse keys among themselves, but each is active alongside ALWAYS_ACTIVE.
-    private static final GameAction[][] IN_GAME_CONTEXTS = {UNIT_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT};
-
-    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
+    // Added Peon Context to allow same bind with train peon, prod resource, and build quarters.
+    private static final GameAction[][] IN_GAME_CONTEXTS = {UNIT_CONTEXT, BUILDING_CONTEXT, PEON_CONTEXT, RESOURCE_CONTEXT};
+    // train peon actions still conflict check against always_active
+    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT,PEON_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
 
     private static final Map<GameAction, Set<GameAction>> CONFLICT_MAP = buildConflictMap();
 

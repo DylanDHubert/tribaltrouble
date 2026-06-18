@@ -703,7 +703,7 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                     // G - Gather or Harvest
                     if (current_unit) {
                         activate(event, gather_repair_button);
-                    } else if (current_armory && current_submenu == null) { // Added missing context for submenu, was opening gather resources from any submenu.
+                    } else if (current_armory && current_submenu == null) { // Added missing context for submenu, was opening gather resources from any submenu. TY Pyprohly
                         activate(event, harvest_button);
                     }
                 } else if ((current_peon || current_armory) && event.consumeAction(GameAction.UNIT_BUILD_TOWER)) {
@@ -742,7 +742,6 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
 
                 if (event.isConsumed()) return;
             }
-
             // Repeating Actions (Spinners)
             // Clear remaining actions after a match to prevent global actions (e.g. screenshot)
             // from also firing on the same key combo. Mirrors upstreams return-true behavior.
@@ -752,12 +751,12 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                 if (peon.active()) {
                     if (current_quarters) {
                         quarters_peon_button.shortcutPressed(peon.decrement(), peon.batch());
+                        event.getActions().clear(); // Prevent fallthrough to resource/global handlers when peon shortcut is handled.
                     } else if (current_armory && current_submenu == army_group) {
                         army_peon_button.shortcutPressed(peon.decrement(), peon.batch());
+                        event.getActions().clear();
                     }
-                    event.getActions().clear();
                 }
-
                 // Chicken/Rubber
                 var chicken = checkResourceAction(event, GameAction.RES_CHICKEN, GameAction.RES_CHICKEN_DEC,
                         GameAction.RES_CHICKEN_BATCH, GameAction.RES_CHICKEN_BATCH_DEC);
@@ -801,9 +800,13 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                 var peon = checkResourceAction(event, GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC,
                         GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC);
                 if (peon.active()) {
-                    if (current_quarters) quarters_peon_button.shortcutReleased(peon.decrement(), peon.batch());
-                    else if (current_armory && current_submenu == army_group)
+                    if (current_quarters) {
+                        quarters_peon_button.shortcutReleased(peon.decrement(), peon.batch());
+                        event.getActions().clear(); // Prevent fallthrough to resource/global handlers when peon shortcut is handled.
+                    } else if (current_armory && current_submenu == army_group) {
                         army_peon_button.shortcutReleased(peon.decrement(), peon.batch());
+                        event.getActions().clear();
+                    }
                 } else {
                     var iron = checkResourceAction(event, GameAction.RES_IRON, GameAction.RES_IRON_DEC,
                             GameAction.RES_IRON_BATCH, GameAction.RES_IRON_BATCH_DEC);
@@ -824,10 +827,10 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                         transport_tree_button);
                             } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
                                     GameAction.PROD_TRANSPORT)) {
-                                        if (current_armory && current_submenu == null) {
-                                            transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
-                                        }
-                                    }
+                                if (current_armory && current_submenu == null) {
+                                    transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
+                                }
+                            }
                         }
                     }
                 }
