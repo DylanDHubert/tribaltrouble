@@ -6,7 +6,6 @@ import com.oddlabs.tt.delegate.CameraDelegate;
 import com.oddlabs.tt.delegate.PlacingDelegate;
 import com.oddlabs.tt.delegate.RallyPointDelegate;
 import com.oddlabs.tt.delegate.TargetDelegate;
-import com.oddlabs.tt.delegate.ShipTargetDelegate;
 import com.oddlabs.tt.input.GameAction;
 import com.oddlabs.tt.input.InputEvent;
 import com.oddlabs.tt.input.InputPhase;
@@ -361,8 +360,8 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
         ship_rally_point_button.place(ship_transport_button, Placement.BOTTOM_MID);
         ship_sail_button = new NonFocusIconButton(race_icons.shipIcon(), formatTip("sail_tip", "S"));
         ship_group.addChild(ship_sail_button);
-        ship_sail_button.addMouseClickListener((_, _, _, _) -> pushDelegate(new ShipTargetDelegate(viewer, camera,
-                Action.MOVE)));
+        ship_sail_button.addMouseClickListener((_, _, _, _) -> pushDelegate(new TargetDelegate(viewer, camera,
+                Action.MOVE, true)));
         ship_sail_button.place(ship_rally_point_button, Placement.BOTTOM_MID);
         ship_group.compileCanvas(GROUP_LEFT_OFFSET, GROUP_BOTTOM_OFFSET, GROUP_RIGHT_OFFSET, GROUP_TOP_OFFSET);
 
@@ -804,9 +803,9 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                             // G - Gather or Harvest
                             if (current_unit) {
                                 gather_repair_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
-                            } else if (current_armory) {
+                            } else if (current_armory && current_submenu == null) {
                                 harvest_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
-                            } else if (current_ship) {
+                            } else if (current_ship && current_submenu == null) {
                                 ship_harvest_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
                             }
                         } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
@@ -835,7 +834,7 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                         build_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
                                 } else if (event.consumeAction(GameAction.GAMEPLAY_BACK)) {
                                     // Backspace
-                                    if (current_armory && current_submenu != null) {
+                                    if ((current_armory || current_ship) && current_submenu != null) {
                                         if (current_submenu == harvest_group)
                                             harvest_back_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
                                         else if (current_submenu == build_group)
@@ -957,7 +956,7 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                         transport_tree_button);
                             } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
                                     GameAction.PROD_TRANSPORT)) {
-                                        if (current_armory && current_submenu == null) {
+                                        if ((current_armory || current_ship) && current_submenu == null) {
                                             transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
                                         } else if (current_ship && current_submenu == null) {
                                             ship_transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
@@ -1061,7 +1060,7 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
      * @return true if a submenu was closed
      */
     public boolean tryCloseSubmenu(@NonNull InputEvent event) {
-        if (current_armory && current_submenu != null) {
+        if ((current_armory || current_ship) && current_submenu != null) {
             event.consumeAction(GameAction.GLOBAL_MENU);
             event.consumeAction(GameAction.UI_CANCEL);
             removeGroups();

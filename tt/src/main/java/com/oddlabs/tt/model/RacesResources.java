@@ -50,7 +50,7 @@ public final class RacesResources {
     public static final int QUARTERS_SIZE = 5;
     public static final int ARMORY_SIZE = 5;
     public static final int TOWER_SIZE = 3;
-    public static final int SHIP_SIZE = 7;
+    public static final int SHIP_SIZE = 12;
     public static final int MAX_BUILDING_SIZE = IntStream.of(QUARTERS_SIZE, ARMORY_SIZE,
             TOWER_SIZE).max().orElseThrow();
     public static final int QUARTERS_HIT_POINTS = 200;

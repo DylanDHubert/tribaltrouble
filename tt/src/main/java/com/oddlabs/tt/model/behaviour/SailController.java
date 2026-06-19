@@ -9,7 +9,7 @@ public final class SailController extends Controller {
     private boolean backwards = false;
     private int trials = 0;
 
-    private static final int MAX_TRIALS = 10;
+    private static final int MAX_TRIALS = 4;
 
     public SailController(Ship ship, Target t) {
         super(1);

@@ -19,6 +19,7 @@ import com.oddlabs.tt.particle.LinearEmitter;
 import com.oddlabs.tt.particle.RandomVelocityEmitter;
 import com.oddlabs.tt.pathfinder.Movable;
 import com.oddlabs.tt.pathfinder.Occupant;
+import com.oddlabs.tt.pathfinder.StaticOccupant;
 import com.oddlabs.tt.pathfinder.PathTracker;
 import com.oddlabs.tt.pathfinder.UnitGrid;
 import com.oddlabs.tt.player.Player;
@@ -527,13 +528,13 @@ public class Ship extends Building implements Movable {
 
     public static final boolean isPlacingLegal(
             UnitGrid unit_grid, BuildingTemplate template, int grid_x, int grid_y) {
-        return doIsPlacingLegal(unit_grid, grid_x, grid_y, 1);
+        return doIsPlacingLegal(unit_grid, grid_x, grid_y, 12);
     }
 
     public final boolean isPlacingLegal() {
         return !isDead()
                 && getOwner().canBuild(getBuildingTemplate().getTemplateID())
-                && doIsPlacingLegal(getUnitGrid(), getGridX(), getGridY(), 1);
+                && doIsPlacingLegal(getUnitGrid(), getGridX(), getGridY(), 12);
     }
 
     public final boolean isPlaced() {
@@ -563,8 +564,8 @@ public class Ship extends Building implements Movable {
                         || current_grid_y >= unit_grid.getGridSize()
                         || current_grid_x < 0
                         || current_grid_y < 0) return false;
-                boolean occupied = unit_grid.isGridOccupied(current_grid_x, current_grid_y, UnitGrid.LAND);
-                if (occupied) {
+                Occupant occupant = unit_grid.getOccupant(current_grid_x, current_grid_y, UnitGrid.LAND);
+                if (occupant != null && !(occupant instanceof StaticOccupant)) {
                     return false;
                 }
             }
@@ -797,11 +798,15 @@ public class Ship extends Building implements Movable {
         removeProxy();
     }
 
-    public final void hit(int damage, float dir_x, float dir_y, Player owner) {
+    public final void hit(int damage, float dir_x, float dir_y, @NonNull Player owner) {
+        World world = getOwner().getWorld();
+        float prob = world.getRandom().nextFloat();
+        if (ship_hr.pickVictim(prob, damage, dir_x, dir_y, owner)) {
+            return;
+        }
         super.hit(damage, dir_x, dir_y, owner);
         if (!isDead()) {
             setHitPoints(hit_points - damage);
-            World world = getOwner().getWorld();
             world.getAudio().newAudio(
                     new AudioParameters(
                             world.getRacesResources().getBuildingHitSound(world.getRandom()),
@@ -917,6 +922,8 @@ public class Ship extends Building implements Movable {
     public final void setPosition(float x, float y) {
         if (isDead()) return;
         super.setPosition(x, y);
+        damaged_emitter.setPosition(new Vector3f(getPositionX(), getPositionY(),
+                getPositionZ() + getHitOffsetZ()));
         float xc = x + getBuildingTemplate().getChimneyX();
         float yc = y + getBuildingTemplate().getChimneyY();
         float zc = getPositionZ() + getBuildingTemplate().getChimneyZ();

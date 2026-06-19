@@ -10,10 +10,7 @@ import org.jspecify.annotations.NonNull;
 
 public final class SailBehaviour implements Behaviour {
     private static final float SHIP_SPEED = 0.45f;
-    private static final int NO_COLLISION = 0;
-    private static final int RESOLVABLE_COLLISION = 1;
-    private static final int UNRESOLVABLE_COLLISION = 2;
-    private static final float TIMEOUT = 1.0f;
+    private ShipTrajectoryPoint next_pose = null;
 
     private final Ship ship;
     private final Target target;
@@ -49,12 +46,8 @@ public final class SailBehaviour implements Behaviour {
 
     private State endTrip() {
         if (!trajectory.isComplete() || !trajectory.reachedGoal()) {
-            if (timer >= TIMEOUT) {
-                ship.reportStuck();
-                return State.INTERRUPTIBLE;
-            } else {
-                return State.UNINTERRUPTIBLE;
-            }
+            ship.reportStuck();
+            return State.INTERRUPTIBLE;
         } else {
             ship.endTrip();
             return State.DONE;
@@ -79,28 +72,40 @@ public final class SailBehaviour implements Behaviour {
             ship.endTrip();
             return State.DONE;
         }
-        float speed = rowers * SHIP_SPEED;
-        ShipTrajectoryPoint new_pose = trajectory.advance(speed * t);
+
+        if (next_pose == null) {
+            float speed = rowers * SHIP_SPEED;
+            next_pose = trajectory.advance(speed * t);
+        }
 
         if (trajectory.reachedGoal()) {
-            timer += t;
             return endTrip();
         }
 
         ShipTrajectoryPoint fromPoint = new ShipTrajectoryPoint(ship);
 
-        if (trajectory.checkCollisionOnLine(fromPoint, new_pose.moved(6), 5)) {
-            timer += t;
-            return endTrip();
+        ShipTrajectory.CollisionState[] state = new ShipTrajectory.CollisionState[1];
+        if (trajectory.checkCollisionOnLine(fromPoint.moved(4), next_pose.moved(8), 6, state)) {
+            if (state[0] == ShipTrajectory.CollisionState.LAND) {
+                return endTrip();
+            } else {
+                timer += t;
+                if (timer >= 0.5f) {
+                    return endTrip();
+                } else {
+                    return State.UNINTERRUPTIBLE;
+                }
+            }
         }
 
-        ship.free();
-        ship.setPosition(new_pose.positionX, new_pose.positionY);
-        ship.setGridPosition(new_pose.gridX, new_pose.gridY);
-        ship.setDirection(new_pose.directionX, new_pose.directionY);
-        ship.occupy();
-
         timer = 0.0f;
+
+        ship.free();
+        ship.setPosition(next_pose.positionX, next_pose.positionY);
+        ship.setGridPosition(next_pose.gridX, next_pose.gridY);
+        ship.setDirection(next_pose.directionX, next_pose.directionY);
+        next_pose = null;
+        ship.occupy();
 
         return State.UNINTERRUPTIBLE;
     }

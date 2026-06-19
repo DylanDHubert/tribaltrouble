@@ -9,16 +9,9 @@ import org.jspecify.annotations.NonNull;
 
 
 public final class ReverseSailBehaviour implements Behaviour {
-    private static final int NO_COLLISION = 0;
-    private static final int RESOLVABLE_COLLISION = 1;
-    private static final int UNRESOLVABLE_COLLISION = 2;
-
     private final Ship ship;
     private boolean blocked = false;
     private final ShipTrajectoryPoint curr;
-    private final ShipTrajectoryPoint end;
-    private final float total_distance;
-    private float curr_distance;
 
     private final UnitGrid grid;
     private final int grid_size;
@@ -29,14 +22,6 @@ public final class ReverseSailBehaviour implements Behaviour {
         grid_size = grid.getGridSize();
 
         curr = new ShipTrajectoryPoint(ship);
-        end = ShipTrajectory.getNearestGap(grid, curr, curr.moved(-20), 12, 12, 5);
-
-        curr_distance = 0.0f;
-        if (end != null) {
-            total_distance = curr.distanceTo(end);
-        } else {
-            total_distance = 0.0f;
-        }
     }
 
     public void appendToolTip(ToolTipBox tool_tip_box) {
@@ -54,11 +39,6 @@ public final class ReverseSailBehaviour implements Behaviour {
             return State.DONE;
         }
 
-        if (total_distance == 0.0f || end == null) {
-            ship.reportStuck();
-            return State.INTERRUPTIBLE;
-        }
-
         ship.setLayer(UnitGrid.SEA);
 
         ShipTrajectoryPoint shipPt = new ShipTrajectoryPoint(ship);
@@ -71,30 +51,32 @@ public final class ReverseSailBehaviour implements Behaviour {
 
         float step = rowers * 0.2f * t;
 
-        // If it's blocked behind the ship
-        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(-step), 5)) {
+        ShipTrajectory.CollisionState[] state = new ShipTrajectory.CollisionState[1];
+
+        // If it's clear infront of the ship
+        if (!ShipTrajectory.checkCollisionOnLine(grid, ship, curr.moved(4), curr.moved(15), 6, state)) {
             ship.reportStuck();
             return State.INTERRUPTIBLE;
         }
 
-        // If it's clear infront of the ship
-        if (!ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(12), 5)) {
-            ship.reportStuck();
-            return State.INTERRUPTIBLE;
+        // If it's blocked behind the ship
+        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr.moved(-4), curr.moved(-step).moved(-8), 6, state)) {
+            if (state[0] == ShipTrajectory.CollisionState.LAND) {
+                // If blocked by land, it should replan
+                ship.reportStuck();
+                return State.INTERRUPTIBLE;
+            } else {
+                // If blocked by a ship, it can wait
+                return State.UNINTERRUPTIBLE;
+            }
         }
 
         curr.move(-step);
-        curr_distance += step;
 
         ship.free();
         ship.setPosition(curr.positionX, curr.positionY);
         ship.setGridPosition(curr.gridX, curr.gridY);
         ship.occupy();
-
-        if (total_distance <= curr_distance) {
-            ship.reportStuck();
-            return State.INTERRUPTIBLE;
-        }
 
         return State.UNINTERRUPTIBLE;
     }

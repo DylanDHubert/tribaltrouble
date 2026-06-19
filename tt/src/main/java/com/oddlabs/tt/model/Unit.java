@@ -84,6 +84,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
      * unit is in a tower
      */
     private boolean mounted;
+    private boolean onboard = false;
     private float mount_offset = 0;
     private Building mounted_building;
     private float range_bonus;
@@ -236,6 +237,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
         clearControllerStack();
         swapController(new IdleController(this, new AttackScanFilter(getOwner(), AttackScanFilter.UNIT_RANGE), true));
         mounted = false;
+        onboard = false;
         mount_offset = 0;
         enable();
         Building entrance = mounted_building.getEntrance();
@@ -266,6 +268,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
         disable();
         free();
         mounted = true;
+        onboard = true;
         setReference(building);
         clearControllerStack();
         switch (ship_allocation.getRole()) {
@@ -463,7 +466,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
     @Override
     public final void hit(int damage, float direction_x, float direction_y, @NonNull Player owner) {
         super.hit(damage, direction_x, direction_y, owner);
-        if (mounted) {
+        if (mounted && !onboard) {
             mounted_building.hit(damage, direction_x, direction_y, owner);
         } else if (!isDead()) {
             hit_points = Math.clamp(hit_points - damage, 0, getTemplate().getMaxHitPoints());
@@ -477,6 +480,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
         getOwner().unitLost();
 
         mounted = false;
+        onboard = false;
         mount_offset = 0;
 
         pushController(new DieController(this));

@@ -9,13 +9,9 @@ import org.jspecify.annotations.NonNull;
 
 
 public final class ShipSlideBehaviour implements Behaviour {
-    private static final int NO_COLLISION = 0;
-    private static final int RESOLVABLE_COLLISION = 1;
-    private static final int UNRESOLVABLE_COLLISION = 2;
-
     private final Ship ship;
     private boolean blocked = false;
-    private final ShipTrajectoryPoint curr;
+    private ShipTrajectoryPoint curr;
     private ShipTrajectoryPoint end;
     private final float total_distance;
     private float curr_distance;
@@ -29,7 +25,7 @@ public final class ShipSlideBehaviour implements Behaviour {
         grid_size = grid.getGridSize();
 
         curr = new ShipTrajectoryPoint(ship);
-        end = ShipTrajectory.getNearestGap(grid, curr, curr.moved(-20), 12, 12, 5);
+        end = ShipTrajectory.getNearestGap(grid, curr, curr.moved(-20), 12, 12, 6);
 
         curr_distance = 0.0f;
 
@@ -58,15 +54,20 @@ public final class ShipSlideBehaviour implements Behaviour {
         ship.setLayer(UnitGrid.SEA);
 
         ShipTrajectoryPoint shipPt = new ShipTrajectoryPoint(ship);
-        /*
-        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(-0.6f * t), 5)) {
-            blocked = true;
-            return State.INTERRUPTIBLE;
+
+        ShipTrajectory.CollisionState[] state = new ShipTrajectory.CollisionState[1];
+
+        ShipTrajectoryPoint next = curr.moved(-1.4f * t);
+
+        if (ShipTrajectory.checkCollisionOnLine(grid, ship, curr, curr.moved(-8), 6, state)) {
+            if (state[0] == ShipTrajectory.CollisionState.SHIP) {
+                return State.UNINTERRUPTIBLE;
+            }
         }
-        */
+
         blocked = false;
 
-        curr.move(-1.4f * t);
+        curr = next;
         curr_distance += 1.4f * t;
 
         ship.free();

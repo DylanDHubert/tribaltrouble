@@ -7,6 +7,10 @@ import com.oddlabs.tt.model.weapon.RockSpearWeapon;
 import com.oddlabs.tt.model.weapon.RubberAxeWeapon;
 import com.oddlabs.tt.model.weapon.RubberSpearWeapon;
 
+import com.oddlabs.tt.player.Player;
+
+import org.jspecify.annotations.NonNull;
+
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
@@ -219,6 +223,21 @@ public final class ShipHR {
             }
         }
         return result;
+    }
+
+    public boolean pickVictim(float random, int damage, float dir_x, float dir_y, @NonNull Player owner) {
+        int index = StrictMath.round(random * (NUM_UNITS - 1));
+        Unit unit = units[index];
+        if (unit != null) {
+            if (unit.getHitPoints() - damage <= 0) {
+                unit.setReference(null);
+                unit.enable();
+                units[index] = null;
+            }
+            unit.hit(damage, dir_x, dir_y, owner);
+            return true;
+        }
+        return false;
     }
 
     public int countRowers() {
