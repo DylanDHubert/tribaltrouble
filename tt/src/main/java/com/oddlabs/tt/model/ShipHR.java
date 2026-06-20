@@ -148,6 +148,7 @@ public final class ShipHR {
                 units[i].setReference(null);
                 units[i].unmount();
                 units[i].startDying();
+                units[i] = null;
             }
         }
     }
