@@ -641,14 +641,12 @@ public final class Landscape {
         if (DEBUG) slope.copy().dynamicRange().toLayer().saveAsPNG("slope");
         relheight = height.copy().relativeIntensityNormalized(Math.max(1, unit_grids_per_world >> 5));
         if (DEBUG) relheight.toLayer().saveAsPNG("relheight");
-        access = generateThresholdMap(slope, access_threshold, Globals.SEA_LEVEL - 0.1f / height_scale);
-        resources_access = access.copy().channelMultiply(water_map.copy().invert());
-        access.channelMultiply(water_map.copy().channelSubtract(dock_map).invert());
+        access = generateThresholdMap(slope, access_threshold);
+        resources_access = access.copy();
         access_exported = access.copy();
         if (DEBUG) access.toLayer().saveAsPNG("access");
         build = Landscape.generateBuildMap(
-                generateThresholdMap(slope, build_threshold, Globals.SEA_LEVEL).channelMultiply(access).channelSubtract(
-                        dock_map));
+                generateThresholdMap(slope, build_threshold).channelMultiply(access));
     }
 
     private void generateTerrainViking() {
@@ -717,13 +715,12 @@ public final class Landscape {
         if (DEBUG) slope.copy().dynamicRange().toLayer().saveAsPNG("slope");
         relheight = height.copy().relativeIntensityNormalized(Math.max(1, unit_grids_per_world >> 5));
         if (DEBUG) relheight.toLayer().saveAsPNG("relheight");
-        access = generateThresholdMap(slope, access_threshold, Globals.SEA_LEVEL - 0.1f / height_scale);
-        resources_access = access.copy().channelMultiply(water_map.copy().invert());
-        access.channelMultiply(water_map.copy().channelSubtract(dock_map).invert());
+        access = generateThresholdMap(slope, access_threshold);
+        resources_access = access.copy();
         access_exported = access.copy();
         if (DEBUG) access.toLayer().saveAsPNG("access");
         build = Landscape.generateBuildMap(
-                generateThresholdMap(slope, build_threshold, Globals.SEA_LEVEL).channelMultiply(access));
+                generateThresholdMap(slope, build_threshold).channelMultiply(access));
     }
 
     // shape beaches
@@ -747,8 +744,9 @@ public final class Landscape {
     }
 
     // generate threshold map
-    private @NonNull Channel generateThresholdMap(@NonNull Channel slopemap, float threshold, float min) {
-        Channel channel = slopemap.copy().threshold(0f, threshold).channelSubtract(height.copy().threshold(0f, min));
+    private @NonNull Channel generateThresholdMap(@NonNull Channel slopemap, float threshold) {
+        Channel channel = slopemap.copy().threshold(0f, threshold).channelSubtract(height.copy().threshold(0f,
+                Globals.SEA_LEVEL));
         // fix edges
         for (int y = 0; y < unit_grids_per_world; y += (unit_grids_per_world - 1)) {
             for (int x = 0; x < unit_grids_per_world; x++) {

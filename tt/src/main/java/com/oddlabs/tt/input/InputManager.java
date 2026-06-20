@@ -289,9 +289,7 @@ public final class InputManager {
     }
 
     public @NonNull Set<@NonNull InputBinding> getBindings(GameAction action) {
-        return bindings.stream()
-                .filter(b -> b.action() == action)
-                .collect(Collectors.toSet());
+        return bindings.stream().filter(b -> b.action() == action).collect(Collectors.toSet());
     }
 
     public @NonNull Set<@NonNull InputBinding> getDefaultBindings(GameAction action) {

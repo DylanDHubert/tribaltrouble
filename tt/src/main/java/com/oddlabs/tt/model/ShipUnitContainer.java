@@ -27,7 +27,6 @@ public final class ShipUnitContainer extends UnitContainer {
     }
 
     public final Unit exit() {
-        assert getNumSupplies() > 0;
         increaseSupply(-1);
         return null;
     }

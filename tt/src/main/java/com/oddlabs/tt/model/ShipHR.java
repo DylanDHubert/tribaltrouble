@@ -146,7 +146,7 @@ public final class ShipHR {
         for (int i = 0; i < NUM_UNITS; i++) {
             if (units[i] != null) {
                 units[i].setReference(null);
-                units[i].enable();
+                units[i].unmount();
                 units[i].startDying();
             }
         }
@@ -231,7 +231,7 @@ public final class ShipHR {
         if (unit != null) {
             if (unit.getHitPoints() - damage <= 0) {
                 unit.setReference(null);
-                unit.enable();
+                unit.unmount();
                 units[index] = null;
             }
             unit.hit(damage, dir_x, dir_y, owner);
