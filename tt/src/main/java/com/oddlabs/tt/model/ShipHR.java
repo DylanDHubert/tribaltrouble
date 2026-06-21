@@ -134,7 +134,7 @@ public final class ShipHR {
             for (int i = UPPER_DECK_START; i < UPPER_DECK_START + NUM_UPPER_DECK; i++) {
                 if (units[i] == null) {
                     units[i] = unit;
-                    unit.increaseRange(8f);
+                    unit.increaseRange(10f);
                     return allocations[i];
                 }
             }

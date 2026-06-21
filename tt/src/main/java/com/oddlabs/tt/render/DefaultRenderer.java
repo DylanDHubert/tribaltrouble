@@ -145,7 +145,8 @@ public final class DefaultRenderer implements UIRenderer, AutoCloseable {
 
             float x = rally_point.getPositionX();
             float y = rally_point.getPositionY();
-            float z = world.getHeightMap().getNearestHeight(rally_point.getPositionX(), rally_point.getPositionY());
+            float z = Math.max(world.getHeightMap().getSeaLevelMeters(), world.getHeightMap().getNearestHeight(
+                    rally_point.getPositionX(), rally_point.getPositionY()));
             if (rally_point instanceof Building rally_building) {
                 x += rally_building.getTemplate().getRallyX();
                 y += rally_building.getTemplate().getRallyY();

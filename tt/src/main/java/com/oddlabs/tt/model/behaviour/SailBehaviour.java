@@ -45,7 +45,7 @@ public final class SailBehaviour implements Behaviour {
     }
 
     private State endTrip() {
-        if (!trajectory.isComplete() || !trajectory.reachedGoal()) {
+        if (!trajectory.isComplete() || !trajectory.almostReachedGoal()) {
             ship.reportStuck();
             return State.INTERRUPTIBLE;
         } else {

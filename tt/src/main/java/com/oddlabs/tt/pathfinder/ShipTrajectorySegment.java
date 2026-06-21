@@ -37,13 +37,10 @@ public final class ShipTrajectorySegment {
         float speed_factor = 1.0f;
         float cost_offset = 0.0f;
         if (radius < 2.0f) {
-            speed_factor = 0.01f;
-            cost_offset = 10.0f;
-        } else if (radius < 10.0f) {
-            speed_factor = (radius + 2.0f) / 12.0f;
+            speed_factor = 0.5f;
         }
         this.length = StrictMath.abs(swept) * radius;
-        this.cost = length / speed_factor + cost_offset;
+        this.cost = length / speed_factor;
     }
 
     private static float wrapToPi(float angle) {

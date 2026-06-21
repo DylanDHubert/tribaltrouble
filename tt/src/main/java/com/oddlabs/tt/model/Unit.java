@@ -278,7 +278,7 @@ public class Unit extends Selectable<UnitTemplate> implements Occupant, Movable 
                                 this,
                                 building,
                                 new AttackScanFilter(
-                                        getOwner(), AttackScanFilter.TOWER_RANGE + 100),
+                                        getOwner(), AttackScanFilter.TOWER_RANGE + 10),
                                 ship_allocation));
                 break;
             default:

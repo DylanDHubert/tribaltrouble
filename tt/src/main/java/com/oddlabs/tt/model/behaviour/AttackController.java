@@ -5,6 +5,8 @@ import com.oddlabs.tt.model.Ship;
 import com.oddlabs.tt.model.ShipAllocation;
 import com.oddlabs.tt.model.Unit;
 
+import com.oddlabs.tt.pathfinder.UnitGrid;
+
 public final class AttackController extends Controller {
 
     private final Selectable<?> target;
@@ -29,7 +31,8 @@ public final class AttackController extends Controller {
     }
 
     private boolean canAttack() {
-        return unit.isCloseEnough(unit.getRange(target), target, target.getLayer());
+        return unit.isCloseEnough(unit.getRange(target), target, UnitGrid.LAND) || unit.isCloseEnough(unit.getRange(
+                target), target, UnitGrid.SEA);
     }
 
     @Override

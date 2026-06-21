@@ -90,9 +90,9 @@ public class Ship extends Building implements Movable {
     private float remove_delay = 0;
     private int hit_points = 1;
     private int build_points = 0;
-    private float[][] old_landscape_heights;
 
     private boolean slid = false;
+    private boolean flattened = false;
 
     private Target rally_point = this;
 
@@ -196,6 +196,48 @@ public class Ship extends Building implements Movable {
 
     public final void visit(ElementVisitor visitor) {
         visitor.visitBuilding(this);
+    }
+
+    private void flattenLandscape() {
+        UnitGrid grid = getUnitGrid();
+        float center_x = getPositionX();
+        float center_y = getPositionY();
+        float dir_x = getDirectionX();
+        float dir_y = getDirectionY();
+
+        float half_length_meters = (OCCUPY_LENGTH_CELLS + 2) * HeightMap.METERS_PER_UNIT_GRID * 0.5f;
+        float half_width_meters = (OCCUPY_WIDTH_CELLS + 2) * HeightMap.METERS_PER_UNIT_GRID * 0.5f;
+        float half_diagonal_meters = (float) StrictMath.sqrt(
+                half_length_meters * half_length_meters + half_width_meters * half_width_meters);
+        int radius_cells = (int) StrictMath.ceil(half_diagonal_meters / HeightMap.METERS_PER_UNIT_GRID) + 1;
+        int grid_size = grid.getGridSize();
+        int start_x = StrictMath.max(0, getGridX() - radius_cells);
+        int end_x = StrictMath.min(grid_size - 1, getGridX() + radius_cells);
+        int start_y = StrictMath.max(0, getGridY() - radius_cells);
+        int end_y = StrictMath.min(grid_size - 1, getGridY() + radius_cells);
+
+        var hm = getOwner().getWorld().getHeightMap();
+
+        float h = hm.getSeaLevelMeters() + 0.1f;
+
+        for (int y = start_y; y <= end_y; y++) {
+            for (int x = start_x; x <= end_x; x++) {
+                if (IsInsideShape(
+                        x,
+                        y,
+                        center_x,
+                        center_y,
+                        dir_x,
+                        dir_y,
+                        half_length_meters,
+                        half_width_meters)) {
+                    float curr = hm.getWrappedHeight(x, y);
+                    if (curr > h) {
+                        hm.editHeight(x, y, h);
+                    }
+                }
+            }
+        }
     }
 
     public final BuildingTemplate getBuildingTemplate() {
@@ -596,6 +638,10 @@ public class Ship extends Building implements Movable {
         assert (result == 1) : "Too many buildings";
         build_points = 1;
         reinsert();
+        if (!flattened) {
+            flattenLandscape();
+            flattened = true;
+        }
     }
 
     public final float getSize() {

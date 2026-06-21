@@ -286,6 +286,13 @@ public final class ShipTrajectory {
         if (currentSegmentIndex >= trajectory.size()) {
             return true;
         }
+        return false;
+    }
+
+    public boolean almostReachedGoal() {
+        if (currentSegmentIndex >= trajectory.size()) {
+            return true;
+        }
         float d = trajectory.get(trajectory.size() - 1).p1.gridDistanceTo(new ShipTrajectoryPoint(ship));
         if (d <= 4) {
             return true;
