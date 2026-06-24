@@ -210,6 +210,10 @@ public final class ShipProxy extends Building {
         ship.createTransporters(num_tree, num_rock, num_iron, num_rubber);
     }
 
+    public final @NonNull Building getBase() {
+        return ship;
+    }
+
     public final void buildWeapons(Class type, int num_weapons, boolean infinite) {
     }
 

@@ -390,11 +390,11 @@ public final class Player implements PlayerInterface {
             building.deployUnits(type, num_units);
     }
 
-    public int getGathererCount(@NonNull Class<? extends Supply> supply_type) {
+    public int getGathererCount(@NonNull Class<? extends Supply> supply_type, Building building) {
         int count = 0;
         for (Selectable<?> s : units.getSet()) {
             if (s instanceof Unit && s.getPrimaryController() instanceof GatherController<?> gather) {
-                if (gather.getSupplyType() == supply_type) {
+                if (gather.getSupplyType() == supply_type && gather.getAssignedBuilding() == building) {
                     count++;
                 }
             }

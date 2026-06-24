@@ -4,6 +4,7 @@ import com.oddlabs.tt.model.Building;
 import com.oddlabs.tt.model.DeployContainer;
 import com.oddlabs.tt.model.DeployType;
 import com.oddlabs.tt.model.Supply;
+import com.oddlabs.tt.model.Ship;
 import com.oddlabs.tt.player.Player;
 import com.oddlabs.tt.player.PlayerInterface;
 import com.oddlabs.tt.viewer.WorldViewer;
@@ -43,7 +44,7 @@ public final class DeploySpinner extends IconSpinner {
     protected int getDisplayCount() {
         int count = computeCount();
         if (player != null && gather_supply_type != null) {
-            count += player.getGathererCount(gather_supply_type);
+            count += player.getGathererCount(gather_supply_type, current_building);
         }
         return count;
     }
@@ -78,7 +79,34 @@ public final class DeploySpinner extends IconSpinner {
 
     @Override
     protected void increase(int amount) {
-        if (!current_building.isDead()) {
+        if (current_building.isDead()) {
+            return;
+        }
+
+        if (current_building instanceof Ship ship) {
+            // Handle ships case
+            var hr = ship.getShipHR();
+            int num_units;
+            switch (deploy_type) {
+                case DeployType.ROCK_WARRIOR, DeployType.IRON_WARRIOR, DeployType.RUBBER_WARRIOR -> {
+                    num_units = hr.countUnitsOfType(supply_type);
+                }
+                case DeployType.PEON, DeployType.PEON_HARVEST_TREE, DeployType.PEON_HARVEST_ROCK,
+                        DeployType.PEON_HARVEST_RUBBER -> {
+                    num_units = hr.countPeons();
+                }
+                default -> {
+                    num_units = Math.min(hr.countPeons(), ship.getSupplyContainer(supply_type).getNumSupplies());
+                }
+            }
+            num_units -= ship.getDeployContainer(deploy_type).getNumSupplies();
+            if (order_size + amount > num_units) {
+                amount = Math.max(0, num_units - order_size);
+            }
+            order_size += amount;
+            num_orders += amount;
+        } else {
+            // Handle original building case
             int num_units = current_building.getUnitContainer().getNumSupplies();
             int num_supplies = Integer.MAX_VALUE;
             if (supply_type != null) {
@@ -113,7 +141,7 @@ public final class DeploySpinner extends IconSpinner {
                 num_orders -= amount;
             }
         } else if (player != null && gather_supply_type != null
-                && player.getGathererCount(gather_supply_type) > 0) {
+                && player.getGathererCount(gather_supply_type, current_building) > 0) {
                     player_interface.recallGatherers(current_building, gather_supply_type, amount);
                 }
     }

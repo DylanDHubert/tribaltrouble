@@ -1297,11 +1297,10 @@ public final class Landscape {
         water_map = height.copy().threshold(Globals.SEA_LEVEL - 10.0f, Globals.SEA_LEVEL).floodfill(0, 0, -1.0f, 0.1f,
                 new int[1]).threshold(-1.01f, -0.99f);
         if (DEBUG) water_map.toLayer().saveAsPNG("water_map");
-        dock_map = water_map.copy().smooth(10).threshold(0.0f, 0.99f).channelMultiply(water_map);
         Channel beach = height.copy().threshold(
-                Globals.SEA_LEVEL - 0.5f / height_scale,
-                Globals.SEA_LEVEL + 0.05f / height_scale);
-        dock_map = dock_map.channelMultiply(beach);
+                Globals.SEA_LEVEL,
+                Globals.SEA_LEVEL + 0.5f / height_scale);
+        dock_map = water_map.copy().smooth(20).threshold(0.0f, 0.99f).channelMultiply(beach);
         if (DEBUG) beach.toLayer().saveAsPNG("beach");
         if (DEBUG) dock_map.toLayer().saveAsPNG("dock_map");
         for (int y = 0; y < unit_grids_per_world; y++) {
@@ -1314,8 +1313,6 @@ public final class Landscape {
                 this.water[y][x] = water_map.getPixel(x, y) > 0.5f;
             }
         }
-        dock_map.smooth(50).multiply(10.0f);
-        if (DEBUG) dock_map.toLayer().saveAsPNG("sea_cost_map");
     }
 
     public BlendInfo @NonNull [] getBlendInfos() {
@@ -1343,10 +1340,6 @@ public final class Landscape {
 
     public final boolean[][] getDockGrid() {
         return dock;
-    }
-
-    public final Channel getSeaCostMap() {
-        return dock_map;
     }
 
     public final boolean[][] getWaterGrid() {

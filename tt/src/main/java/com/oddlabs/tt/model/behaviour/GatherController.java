@@ -44,6 +44,10 @@ public final class GatherController<S extends Supply> extends Controller {
         return supply_type;
     }
 
+    public @Nullable Building getAssignedBuilding() {
+        return assigned_building;
+    }
+
     @Override
     public @NonNull String getKey() {
         return super.getKey() + supply_type;

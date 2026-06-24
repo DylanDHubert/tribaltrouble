@@ -352,14 +352,14 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
             Selectable<?> enemy) {
         Army current_selection = getViewer().getSelection().getCurrentSelection();
         Selectable<?> first = current_selection.getSet().iterator().next();
-        if (first instanceof Ship) {
-            toggleSelection(current_selection, friendly_ships);
-            return;
-        }
         if (first instanceof Building || first.getOwner() != getViewer().getLocalPlayer()) {
             if (first == friendly_building || first == enemy) {
                 current_selection.clear();
             }
+            return;
+        }
+        if (first instanceof Ship) {
+            toggleSelection(current_selection, friendly_ships);
             return;
         }
         toggleSelection(current_selection, friendly_units);
@@ -389,13 +389,13 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
             @Nullable Selectable<?> enemy) {
         Army current_selection = getViewer().getSelection().getCurrentSelection();
         current_selection.clear();
-        if (!friendly_ships.isEmpty()) {
-            for (Ship ship : friendly_ships) {
-                current_selection.add(ship);
-            }
-        } else if (!friendly_units.isEmpty()) {
+        if (!friendly_units.isEmpty()) {
             for (Selectable<?> friendlyUnit : friendly_units) {
                 current_selection.add(friendlyUnit);
+            }
+        } else if (!friendly_ships.isEmpty()) {
+            for (Ship ship : friendly_ships) {
+                current_selection.add(ship);
             }
         } else if (friendly_building != null) {
             current_selection.add(friendly_building);

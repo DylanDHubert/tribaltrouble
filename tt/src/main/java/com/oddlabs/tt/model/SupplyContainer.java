@@ -20,7 +20,7 @@ public class SupplyContainer {
         return Math.clamp(supply_count + amount, 0, max_supply_count) - supply_count;
     }
 
-    public final void prepareDeploy(int amount) {
+    public void prepareDeploy(int amount) {
         int result = increaseSupply(-amount);
         assert result == -amount;
         num_preparing += amount;

@@ -89,6 +89,10 @@ public abstract class Building extends Selectable<BuildingTemplate> implements O
         return this;
     }
 
+    public Building getBase() {
+        return this;
+    }
+
     public void printDebugInfo() {
         IO.println("-----------------------------------");
         if (getAbilities().hasAbilities(Abilities.REPRODUCE)) {

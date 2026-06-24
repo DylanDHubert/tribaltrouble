@@ -1,6 +1,5 @@
 package com.oddlabs.tt.landscape;
 
-import com.oddlabs.procedural.Channel;
 import com.oddlabs.tt.global.Globals;
 import org.joml.Vector3f;
 import org.jspecify.annotations.NonNull;
@@ -25,7 +24,6 @@ public final class HeightMap {
     private final boolean[][] access_grid;
     private final boolean[][] dock_grid;
     private final boolean[][] water_grid;
-    private final Channel sea_cost_map;
     private final List<int[]> island_locations;
     private final int[][] island_ids;
     private final Map<Integer, IslandInfo> island_info;
@@ -57,7 +55,6 @@ public final class HeightMap {
             boolean[][] access_grid,
             boolean[][] dock_grid,
             boolean[][] water_grid,
-            Channel sea_cost_map,
             byte[][] build_grid,
             int[][] island_ids,
             List<IslandInfo> island_infos) {
@@ -67,7 +64,6 @@ public final class HeightMap {
         this.access_grid = access_grid;
         this.dock_grid = dock_grid;
         this.water_grid = water_grid;
-        this.sea_cost_map = sea_cost_map;
         this.build_grid = build_grid;
         this.island_locations = island_locations;
         this.island_ids = island_ids;
@@ -194,10 +190,6 @@ public final class HeightMap {
 
     public final boolean[][] getDockGrid() {
         return dock_grid;
-    }
-
-    public final Channel getSeaCostMap() {
-        return sea_cost_map;
     }
 
     public final boolean[][] getWaterGrid() {

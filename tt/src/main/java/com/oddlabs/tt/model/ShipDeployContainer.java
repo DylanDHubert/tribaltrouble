@@ -28,7 +28,7 @@ public class ShipDeployContainer extends DeployContainer {
         // If it's a transfer operation from a ship, we have to make sure these
         // units are peons. Warriors cannot transfer resources. And they cannot
         // be turned into peons at this point.
-        if (!is_transfer) {
+        if (is_transfer) {
             int num_peons = ship.getShipHR().countPeons();
             if (result > 0) {
                 result = StrictMath.min(num_peons, result);

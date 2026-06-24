@@ -4,7 +4,6 @@ import com.oddlabs.tt.landscape.IslandInfo;
 import com.oddlabs.tt.render.Texture;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import com.oddlabs.procedural.Channel;
 
 import java.util.List;
 
@@ -14,7 +13,7 @@ public record WorldInfo(int meters_per_world, float sea_level_meters, int texels
                         @NonNull List<int[]> palm_trees, @NonNull List<int[]> rocks, @NonNull List<int[]> iron,
                         float @NonNull [] @NonNull [] plants, boolean @NonNull [] @NonNull [] access_grid,
                         boolean @NonNull [] @NonNull [] dock_grid,
-                        boolean @NonNull [] @NonNull [] water_grid, Channel sea_cost_map,
+                        boolean @NonNull [] @NonNull [] water_grid,
                         byte @NonNull [] @NonNull [] build_grid, @NonNull List<int[]> island_locations,
                         int @NonNull [] @NonNull [] island_ids,
                         @NonNull List<IslandInfo> island_infos,
@@ -28,7 +27,7 @@ public record WorldInfo(int meters_per_world, float sea_level_meters, int texels
             float @NonNull [] @NonNull [] heightmap, @NonNull List<int @NonNull []> trees,
             @NonNull List<int @NonNull []> palm_trees, @NonNull List<int[]> rocks, @NonNull List<int[]> iron,
             float @NonNull [] @NonNull [] plants, boolean @NonNull [] @NonNull [] access_grid,
-            boolean @NonNull [] @NonNull [] dock_grid, boolean @NonNull [] @NonNull [] water_grid, Channel sea_cost_map,
+            boolean @NonNull [] @NonNull [] dock_grid, boolean @NonNull [] @NonNull [] water_grid,
             byte @NonNull [] @NonNull [] build_grid, @NonNull List<int[]> island_locations,
             int @NonNull [] @NonNull [] island_ids,
             @NonNull List<IslandInfo> island_infos,
@@ -49,7 +48,6 @@ public record WorldInfo(int meters_per_world, float sea_level_meters, int texels
         this.access_grid = access_grid;
         this.dock_grid = dock_grid;
         this.water_grid = water_grid;
-        this.sea_cost_map = sea_cost_map;
         this.island_locations = island_locations;
         this.island_ids = island_ids;
         this.island_infos = island_infos;

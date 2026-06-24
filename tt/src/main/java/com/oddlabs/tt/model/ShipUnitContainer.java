@@ -11,7 +11,6 @@ public final class ShipUnitContainer extends UnitContainer {
     public final void enter(Unit unit) {
         ShipAllocation allocation = building.getShipHR().tryAllocate(unit);
         unit.mountDeck(building, allocation);
-        increaseSupply(1);
     }
 
     public final boolean canEnter(Unit unit) {
@@ -26,8 +25,12 @@ public final class ShipUnitContainer extends UnitContainer {
         return building.getShipHR().countUnits();
     }
 
+    public int capAmount(int amount) {
+        int supply_count = getNumSupplies();
+        return Math.max(supply_count + amount, 0) - supply_count;
+    }
+
     public final Unit exit() {
-        increaseSupply(-1);
         return null;
     }
 

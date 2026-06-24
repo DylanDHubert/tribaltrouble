@@ -20,7 +20,6 @@ public final class RegionBuilder {
 
     public static void buildRegions(@NonNull UnitGrid unit_grid, float start_x_f, float start_y_f) {
         boolean[][] access_grid = unit_grid.getHeightMap().getAccessGrid();
-        boolean[][] dock_grid = unit_grid.getHeightMap().getDockGrid();
         List<int[]> island_locations = unit_grid.getHeightMap().getIslandLocations();
         int grid_size = access_grid.length;
         int start_x = UnitGrid.toGridCoordinate(start_x_f);
@@ -32,7 +31,7 @@ public final class RegionBuilder {
             for (int x = 0; x < grid_size; x++) {
                 RegionBuilderNode finder_node = new RegionBuilderNode(x, y);
                 dir_finder_grid[y][x] = finder_node;
-                if (!access_grid[y][x] && !dock_grid[y][x]) {
+                if (!access_grid[y][x]) {
                     unit_grid.occupyGrid(finder_node.getGridX(), finder_node.getGridY(), unreachable_obj);
                     num_occupied++;
                 }
