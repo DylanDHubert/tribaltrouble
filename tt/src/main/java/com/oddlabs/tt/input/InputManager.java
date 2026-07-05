@@ -254,11 +254,17 @@ public final class InputManager {
 
                 try {
                     Set<InputBinding> loaded = parseBindings(value, action);
-                    bindings.addAll(loaded);   // Add even if empty/unbound
-                    continue;
+                    // An empty result is only an intentional unbind when the saved value is an
+                    // explicit empty list; parseBindings returns empty for malformed input
+                    // without throwing.
+                    if (!loaded.isEmpty() || isEmptyList(value)) {
+                        bindings.addAll(loaded);
+                        continue;
+                    }
                 } catch (Exception e) {
-                    logger.warning("Failed to parse binding for " + action + ": " + value + ". Using defaults.");
+                    // fall through to defaults
                 }
+                logger.warning("Failed to parse binding for " + action + ": " + value + ". Using defaults.");
             }
 
 
@@ -319,15 +325,18 @@ public final class InputManager {
         for (InputBinding b : bindings) {
             currentMap.computeIfAbsent(b.action(), k -> new CopyOnWriteArraySet<>()).add(b);
         }
-        // Serialize each
+        // Serialize each. Actions that are unbound but have defaults are written as an explicit
+        // empty list so a deliberate unbind survives an export/import round-trip.
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");
         boolean first = true;
-        for (Map.Entry<GameAction, Set<InputBinding>> entry : currentMap.entrySet()) {
+        for (GameAction action : GameAction.values()) {
+            Set<InputBinding> current = currentMap.get(action);
+            if (current == null && DEFAULT_BINDINGS.get(action) == null) continue;
             if (!first) sb.append(",\n");
             first = false;
-            sb.append("  \"").append(entry.getKey().name()).append("\": ");
-            sb.append(serializeBindings(entry.getValue()));
+            sb.append("  \"").append(action.name()).append("\": ");
+            sb.append(serializeBindings(current == null ? Set.of() : current));
         }
         sb.append("\n}");
         return sb.toString();
@@ -340,6 +349,7 @@ public final class InputManager {
         Matcher m = p.matcher(json);
 
         Set<InputBinding> newBindings = new HashSet<>();
+        Set<GameAction> mentioned = EnumSet.noneOf(GameAction.class);
         boolean foundAny = false;
 
         while (m.find()) {
@@ -349,8 +359,11 @@ public final class InputManager {
             try {
                 GameAction action = GameAction.valueOf(actionName);
                 Set<InputBinding> parsed = parseBindings(arrayContent, action);
-                if (!parsed.isEmpty()) {
+                // An explicit empty list is a deliberate unbind; anything else that parses to
+                // empty is malformed and ignored.
+                if (!parsed.isEmpty() || isEmptyList(arrayContent)) {
                     newBindings.addAll(parsed);
+                    mentioned.add(action);
                     foundAny = true;
                 }
             } catch (Exception e) {
@@ -361,9 +374,24 @@ public final class InputManager {
         if (foundAny) {
             bindings.clear();
             bindings.addAll(newBindings);
+            // Actions the file does not mention keep their defaults instead of becoming unbound.
+            for (GameAction action : GameAction.values()) {
+                if (!mentioned.contains(action)) {
+                    Set<InputBinding> defaults = DEFAULT_BINDINGS.get(action);
+                    if (defaults != null) {
+                        bindings.addAll(defaults);
+                    }
+                }
+            }
         } else {
             logger.warning("No valid bindings found in JSON import.");
         }
+    }
+
+    // An explicit empty list means the user deliberately unbound the action, as opposed to a
+    // malformed value that parseBindings swallows into an empty result.
+    private static boolean isEmptyList(@NonNull String value) {
+        return value.replaceAll("\\s", "").equals("[]");
     }
 
     private @NonNull String serializeBindings(@NonNull Collection<InputBinding> set) {
