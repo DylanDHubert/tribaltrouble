@@ -681,11 +681,13 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                     activate(event, build_button);
                 } else if (current_armory && current_submenu == null && event.consumeAction(GameAction.PROD_ARMY)) {
                     activate(event, army_button);
-                } else if (current_armory && current_submenu == null && event.consumeAction(GameAction.PROD_TRANSPORT)) {
-                    activate(event, transport_button);
-                } else if (current_armory && current_submenu == null && event.consumeAction(GameAction.PROD_HARVEST)) {
-                    activate(event, harvest_button);
-                }
+                } else if (current_armory && current_submenu == null && event.consumeAction(
+                        GameAction.PROD_TRANSPORT)) {
+                            activate(event, transport_button);
+                        } else if (current_armory && current_submenu == null && event.consumeAction(
+                                GameAction.PROD_HARVEST)) {
+                                    activate(event, harvest_button);
+                                }
 
                 // === Normal Unit / Peon Actions ===
                 else if (current_unit && event.consumeAction(GameAction.UNIT_MOVE)) {
@@ -699,46 +701,53 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                     } else if (current_tower) {
                         activate(event, tower_attack_button);
                     }
-                } else if ((current_unit || current_armory) && (event.consumeAction(GameAction.UNIT_GATHER) || event.consumeAction(GameAction.PROD_HARVEST))) {
-                    // G - Gather or Harvest
-                    if (current_unit) {
-                        activate(event, gather_repair_button);
-                    } else if (current_armory && current_submenu == null) { // Added missing context for submenu, was opening gather resources from any submenu. TY Pyprohly
-                        activate(event, harvest_button);
-                    }
-                } else if ((current_peon || current_armory) && event.consumeAction(GameAction.UNIT_BUILD_TOWER)) {
-                    if (current_peon) {
-                        activate(event, tower_button);
-                    }
-                } else if (current_quarters && event.consumeAction(GameAction.TRAIN_CHIEFTAIN)) {
-                    activate(event, quarters_chieftain_button);
-                } else if (current_chieftain != null && event.consumeAction(GameAction.MAGIC_2)) {
-                    if (viewer.getLocalPlayer().canDoMagic(1)) {
-                        activate(event, magic2_button);
-                    }
-                } else if (current_armory && current_submenu != null && event.consumeAction(GameAction.GAMEPLAY_BACK)) {
-                    if (current_submenu == harvest_group)
-                        activate(event, harvest_back_button);
-                    else if (current_submenu == build_group)
-                        activate(event, build_back_button);
-                    else if (current_submenu == army_group)
-                        activate(event, army_back_button);
-                    else if (current_submenu == transport_group)
-                        activate(event, transport_back_button);
-                } else if (current_building == null && current_peon && event.consumeAction(GameAction.UNIT_BUILD_ARMORY)) {
-                    activate(event, armory_button);
-                } else if (current_building != null && event.consumeAction(GameAction.UNIT_SET_RALLY)) {
-                    if (current_armory && current_submenu == null)
-                        activate(event, rally_point_button);
-                    else if (current_quarters)
-                        activate(event, quarters_rally_point_button);
-                } else if (current_tower && event.consumeAction(GameAction.UNIT_EXIT_TOWER)) {
-                    activate(event, tower_exit_button);
-                } else if (current_chieftain != null && event.consumeAction(GameAction.MAGIC_1)) {
-                    if (viewer.getLocalPlayer().canDoMagic(0)) {
-                        activate(event, magic1_button);
-                    }
-                }
+                } else if ((current_unit || current_armory) && (event.consumeAction(GameAction.UNIT_GATHER)
+                        || event.consumeAction(GameAction.PROD_HARVEST))) {
+                            // G - Gather or Harvest
+                            if (current_unit) {
+                                activate(event, gather_repair_button);
+                            } else if (current_armory && current_submenu == null) { // Added missing context for submenu, was opening gather resources from any submenu. TY Pyprohly
+                                activate(event, harvest_button);
+                            }
+                        } else if ((current_peon || current_armory) && event.consumeAction(
+                                GameAction.UNIT_BUILD_TOWER)) {
+                                    if (current_peon) {
+                                        activate(event, tower_button);
+                                    }
+                                } else if (current_quarters && event.consumeAction(GameAction.TRAIN_CHIEFTAIN)) {
+                                    activate(event, quarters_chieftain_button);
+                                } else if (current_chieftain != null && event.consumeAction(GameAction.MAGIC_2)) {
+                                    if (viewer.getLocalPlayer().canDoMagic(1)) {
+                                        activate(event, magic2_button);
+                                    }
+                                } else if (current_armory && current_submenu != null && event.consumeAction(
+                                        GameAction.GAMEPLAY_BACK)) {
+                                            if (current_submenu == harvest_group)
+                                                activate(event, harvest_back_button);
+                                            else if (current_submenu == build_group)
+                                                activate(event, build_back_button);
+                                            else if (current_submenu == army_group)
+                                                activate(event, army_back_button);
+                                            else if (current_submenu == transport_group)
+                                                activate(event, transport_back_button);
+                                        } else if (current_building == null && current_peon && event.consumeAction(
+                                                GameAction.UNIT_BUILD_ARMORY)) {
+                                                    activate(event, armory_button);
+                                                } else if (current_building != null && event.consumeAction(
+                                                        GameAction.UNIT_SET_RALLY)) {
+                                                            if (current_armory && current_submenu == null)
+                                                                activate(event, rally_point_button);
+                                                            else if (current_quarters)
+                                                                activate(event, quarters_rally_point_button);
+                                                        } else if (current_tower && event.consumeAction(
+                                                                GameAction.UNIT_EXIT_TOWER)) {
+                                                                    activate(event, tower_exit_button);
+                                                                } else if (current_chieftain != null
+                                                                        && event.consumeAction(GameAction.MAGIC_1)) {
+                                                                            if (viewer.getLocalPlayer().canDoMagic(0)) {
+                                                                                activate(event, magic1_button);
+                                                                            }
+                                                                        }
 
                 if (event.isConsumed()) return;
             }
@@ -827,10 +836,10 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                         transport_tree_button);
                             } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
                                     GameAction.PROD_TRANSPORT)) {
-                                if (current_armory && current_submenu == null) {
-                                    transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
-                                }
-                            }
+                                        if (current_armory && current_submenu == null) {
+                                            transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
+                                        }
+                                    }
                         }
                     }
                 }

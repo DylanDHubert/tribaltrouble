@@ -44,7 +44,7 @@ public final class KeyBindingConflicts {
     };
     // Army/Quarters peon training: active only inside army submenu or quarters building.
     // Separated peon context from building context..
-    private static final GameAction[] PEON_CONTEXT = {GameAction.TRAIN_PEON,GameAction.TRAIN_PEON_DEC,GameAction.TRAIN_PEON_BATCH,GameAction.TRAIN_PEON_BATCH_DEC,
+    private static final GameAction[] PEON_CONTEXT = {GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC,
     };
 
     // In-game selection contexts. Mutually exclusive with each other (you have a unit XOR a building
@@ -52,7 +52,7 @@ public final class KeyBindingConflicts {
     // Added Peon Context to allow same bind with train peon, prod resource, and build quarters.
     private static final GameAction[][] IN_GAME_CONTEXTS = {UNIT_CONTEXT, BUILDING_CONTEXT, PEON_CONTEXT, RESOURCE_CONTEXT};
     // train peon actions still conflict check against always_active
-    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT,PEON_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
+    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT, PEON_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
 
     private static final Map<GameAction, Set<GameAction>> CONFLICT_MAP = buildConflictMap();
 

@@ -241,7 +241,8 @@ public final class InputManager {
         bindings.clear();
         DEFAULT_BINDINGS.values().forEach(bindings::addAll);
     }
-   // Updated loadBindings to respect empty bindings instead of falling back to defaults
+
+    // Updated loadBindings to respect empty bindings instead of falling back to defaults
     public void loadBindings(@NonNull Properties props) {
         bindings.clear();
 
@@ -267,6 +268,7 @@ public final class InputManager {
             }
         }
     }
+
 //Improved saveBindings to properly save empty binding lists
     public void saveBindings(@NonNull Properties props) {
         Map<GameAction, Set<InputBinding>> currentMap = new EnumMap<>(GameAction.class);
@@ -293,9 +295,7 @@ public final class InputManager {
     }
 
     public @NonNull Set<@NonNull InputBinding> getBindings(GameAction action) {
-        return bindings.stream()
-                .filter(b -> b.action() == action)
-                .collect(Collectors.toSet());
+        return bindings.stream().filter(b -> b.action() == action).collect(Collectors.toSet());
     }
 
     public @NonNull Set<@NonNull InputBinding> getDefaultBindings(GameAction action) {
