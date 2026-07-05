@@ -47,12 +47,18 @@ public final class KeyBindingConflicts {
     private static final GameAction[] PEON_CONTEXT = {GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC,
     };
 
+    // Quarters selected: the peon spinner, train chieftain, and set-rally are all active at the
+    // same time, so they may not share keys even though peon training is otherwise free to reuse
+    // production/resource keys.
+    private static final GameAction[] QUARTERS_CONTEXT = {GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC, GameAction.TRAIN_CHIEFTAIN, GameAction.UNIT_SET_RALLY,
+    };
+
     // In-game selection contexts. Mutually exclusive with each other (you have a unit XOR a building
     // selected), so they may safely reuse keys among themselves, but each is active alongside ALWAYS_ACTIVE.
     // Added Peon Context to allow same bind with train peon, prod resource, and build quarters.
     private static final GameAction[][] IN_GAME_CONTEXTS = {UNIT_CONTEXT, BUILDING_CONTEXT, PEON_CONTEXT, RESOURCE_CONTEXT};
     // train peon actions still conflict check against always_active
-    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT, PEON_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
+    private static final GameAction[][] CONFLICT_GROUPS = {ALWAYS_ACTIVE, UNIT_CONTEXT, PEON_CONTEXT, QUARTERS_CONTEXT, BUILDING_CONTEXT, RESOURCE_CONTEXT, UI_NAV};
 
     private static final Map<GameAction, Set<GameAction>> CONFLICT_MAP = buildConflictMap();
 
