@@ -41,18 +41,16 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
     private static final int GROUP_RIGHT_OFFSET = 10;
     private static final int GROUP_TOP_OFFSET = 20;
 
-    // Actions live inside every armory submenu: rock/iron/chicken spinners and back.
-    private static final Set<GameAction> ARMORY_SUBMENU_BASE_ACTIONS = EnumSet.of(GameAction.RES_ROCK,
+    // Every action handled inside the armory submenus: the spinner rows and the back button.
+    // A key bound to any of these keeps that meaning while a submenu is open, even in a
+    // submenu without that row, so it never doubles as a submenu switch (see canSwitchSubmenu).
+    private static final Set<GameAction> ARMORY_SUBMENU_ACTIONS = EnumSet.of(GameAction.RES_TREE,
+            GameAction.RES_TREE_DEC, GameAction.RES_TREE_BATCH, GameAction.RES_TREE_BATCH_DEC, GameAction.RES_ROCK,
             GameAction.RES_ROCK_DEC, GameAction.RES_ROCK_BATCH, GameAction.RES_ROCK_BATCH_DEC, GameAction.RES_IRON,
             GameAction.RES_IRON_DEC, GameAction.RES_IRON_BATCH, GameAction.RES_IRON_BATCH_DEC, GameAction.RES_CHICKEN,
             GameAction.RES_CHICKEN_DEC, GameAction.RES_CHICKEN_BATCH, GameAction.RES_CHICKEN_BATCH_DEC,
-            GameAction.GAMEPLAY_BACK);
-    // Additionally live in the harvest/transport submenus.
-    private static final Set<GameAction> ARMORY_SUBMENU_TREE_ACTIONS = EnumSet.of(GameAction.RES_TREE,
-            GameAction.RES_TREE_DEC, GameAction.RES_TREE_BATCH, GameAction.RES_TREE_BATCH_DEC);
-    // Additionally live in the army submenu.
-    private static final Set<GameAction> ARMORY_SUBMENU_PEON_ACTIONS = EnumSet.of(GameAction.TRAIN_PEON,
-            GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH, GameAction.TRAIN_PEON_BATCH_DEC);
+            GameAction.TRAIN_PEON, GameAction.TRAIN_PEON_DEC, GameAction.TRAIN_PEON_BATCH,
+            GameAction.TRAIN_PEON_BATCH_DEC, GameAction.GAMEPLAY_BACK);
 
     private final Group unit_group = new NonFocusGroup();
     private final Group peon_group = new NonFocusGroup();
@@ -948,23 +946,13 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
 
     /**
      * A submenu-opening key works from inside another submenu only when its binding doesn't
-     * collide with an action the open submenu handles (spinners, back). On collision the
-     * submenu action wins, so overlapping custom binds keep their in-menu behavior.
+     * collide with anything the submenus handle (spinners, back). On collision the submenu
+     * meaning wins everywhere, so a key bound to a spinner row never switches submenus.
      */
     private boolean canSwitchSubmenu(@NonNull InputEvent event) {
         if (current_submenu == null) return true;
-        for (GameAction action : ARMORY_SUBMENU_BASE_ACTIONS) {
+        for (GameAction action : ARMORY_SUBMENU_ACTIONS) {
             if (event.hasAction(action)) return false;
-        }
-        if (current_submenu == harvest_group || current_submenu == transport_group) {
-            for (GameAction action : ARMORY_SUBMENU_TREE_ACTIONS) {
-                if (event.hasAction(action)) return false;
-            }
-        }
-        if (current_submenu == army_group) {
-            for (GameAction action : ARMORY_SUBMENU_PEON_ACTIONS) {
-                if (event.hasAction(action)) return false;
-            }
         }
         return true;
     }
