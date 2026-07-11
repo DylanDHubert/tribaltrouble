@@ -1,6 +1,7 @@
 package com.oddlabs.tt.form;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -107,8 +108,7 @@ public class KeyBindingDialog extends Form {
                     } catch (Exception e) {
                         otherName = conflict.name();
                     }
-                    guiRoot.addModalForm(new MessageForm(AbstractOptionsMenu.i18n("conflict_title"),
-                            AbstractOptionsMenu.i18n("conflict_message", otherName)));
+                    guiRoot.addModalForm(new SwapConflictForm(otherName, conflict, binding));
                     event.consume();
                     return;
                 }
@@ -124,5 +124,52 @@ public class KeyBindingDialog extends Form {
             return;
         }
         super.handleInput(event);
+    }
+
+    // Gives this action the pressed key and gives the conflicting action this action's
+    // previous bindings, minus the colliding one.
+    private void swapBindings(@NonNull GameAction other, @NonNull InputBinding binding) {
+        var manager = Renderer.getLocalInput().getInputManager();
+        Set<InputBinding> theirs = new HashSet<>();
+        for (InputBinding b : manager.getBindings(other)) {
+            if (b.key() != binding.key() || !b.modifiers().equals(binding.modifiers())) {
+                theirs.add(b);
+            }
+        }
+        for (InputBinding b : manager.getBindings(action)) {
+            theirs.add(new InputBinding(b.key(), b.modifiers(), other));
+        }
+        manager.setBindings(other, theirs);
+        onBindingChosen.accept(Set.of(binding));
+        remove();
+    }
+
+    private final class SwapConflictForm extends Form {
+        SwapConflictForm(@NonNull String otherName, @NonNull GameAction other, @NonNull InputBinding binding) {
+            LabelBox info_label = new LabelBox(AbstractOptionsMenu.i18n("conflict_swap_message", otherName),
+                    Skin.getSkin().getEditFont(), 300);
+            addChild(info_label);
+
+            Group button_group = new Group();
+            HorizButton swap_button = new HorizButton(AbstractOptionsMenu.i18n("btn_swap"), 80);
+            swap_button.addMouseClickListener((_, _, _, _) -> {
+                swapBindings(other, binding);
+                remove();
+            });
+            button_group.addChild(swap_button);
+            HorizButton cancel_button = new CancelButton(80);
+            cancel_button.addMouseClickListener((_, _, _, _) -> cancel());
+            button_group.addChild(cancel_button);
+            swap_button.place();
+            cancel_button.place(swap_button, RIGHT_MID);
+            button_group.compileCanvas();
+            addChild(button_group);
+
+            info_label.place();
+            button_group.place(info_label, BOTTOM_MID);
+
+            compileCanvas();
+            centerPos();
+        }
     }
 }
