@@ -86,12 +86,6 @@ public class KeyBindingDialog extends Form {
         if (event.getPhase() == InputPhase.PRESSED) {
             Key key = event.getKeyCode();
 
-            if (event.hasAction(GameAction.GLOBAL_QUIT)) {
-                guiRoot.addModalForm(new QuitForm(guiRoot));
-                event.consume();
-                return;
-            }
-
             boolean isModifierKey = (key == Key.LSHIFT || key == Key.RSHIFT || key == Key.LCONTROL
                     || key == Key.RCONTROL || key == Key.LALT || key == Key.RALT || key == Key.LSUPER
                     || key == Key.RSUPER);
