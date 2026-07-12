@@ -49,7 +49,7 @@ public final class AttackBehaviour implements Behaviour {
     @Override
     public @NonNull State animate(float t) {
 
-        if (ship != null) {
+        if (ship != null && unit.isMounted()) {
             float x = ship.getPositionX();
             float y = ship.getPositionY();
             float dx = ship.getDirectionX();
