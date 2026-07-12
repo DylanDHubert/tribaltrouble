@@ -92,7 +92,7 @@ public final class DeploySpinner extends IconSpinner {
                     num_units = hr.countUnitsOfType(supply_type);
                 }
                 case DeployType.PEON, DeployType.PEON_HARVEST_TREE, DeployType.PEON_HARVEST_ROCK,
-                        DeployType.PEON_HARVEST_RUBBER -> {
+                        DeployType.PEON_HARVEST_IRON, DeployType.PEON_HARVEST_RUBBER -> {
                     num_units = hr.countPeons();
                 }
                 default -> {
