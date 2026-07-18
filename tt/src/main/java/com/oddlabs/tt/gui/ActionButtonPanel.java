@@ -705,7 +705,9 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                             // G - Gather or Harvest
                             if (current_unit) {
                                 activate(event, gather_repair_button);
-                            } else if (current_armory && canSwitchSubmenu(event)) {
+                            } else if (current_armory && current_submenu == null) {
+                                // Legacy gather alias only works from the top level; direct submenu
+                                // switching is reserved for the PROD_HARVEST binding handled above.
                                 activate(event, harvest_button);
                             }
                         } else if ((current_peon || current_armory) && event.consumeAction(
@@ -835,7 +837,10 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                                         transport_tree_button);
                             } else if (event.consumeAction(GameAction.UNIT_BUILD_TOWER) || event.consumeAction(
                                     GameAction.PROD_TRANSPORT)) {
-                                        if (current_armory && canSwitchSubmenu(event)) {
+                                        // Legacy transport alias (tower key) only works from the top
+                                        // level, so it cannot hijack an open submenu. Direct submenu
+                                        // switching is reserved for the PROD_TRANSPORT press handling.
+                                        if (current_armory && current_submenu == null) {
                                             transport_button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
                                         }
                                     }
