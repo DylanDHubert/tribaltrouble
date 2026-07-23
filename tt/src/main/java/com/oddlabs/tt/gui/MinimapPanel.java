@@ -57,8 +57,14 @@ public final class MinimapPanel extends GUIObject {
     private static final float ISOLINE_SOFT_PIXELS = 1.25f;
 
     // UNWALKABLE LAND TINT (CLIFFS / STEEP SLOPES — NOT WATER)
-    private static final Vector4fc UNWALKABLE_COLOR = new Vector4f(0.42f, 0.28f, 0.34f, 1f);
-    private static final float UNWALKABLE_BLEND = 0.32f;
+    private static final Vector4fc UNWALKABLE_COLOR = new Vector4f(0.85f, 0.18f, 0.12f, 1f);
+    private static final float UNWALKABLE_BLEND = 0.38f;
+
+    // HEADER TOGGLE FOR UNWALKABLE TINT
+    private static final int TOGGLE_PAD = 2;
+    private static final int TOGGLE_SIZE = 11;
+    private static final Vector4fc TOGGLE_ON_COLOR = new Vector4f(0.9f, 0.2f, 0.15f, 1f);
+    private static final Vector4fc TOGGLE_OFF_COLOR = new Vector4f(0.35f, 0.35f, 0.35f, 1f);
 
     // Dot sizes // DYLAN: SLIGHTLY REDUCED SIZE FOR AESTHETICS.
     private static final float UNIT_DOT_SIZE = 1f;
@@ -69,7 +75,8 @@ public final class MinimapPanel extends GUIObject {
 
     private final @NonNull WorldViewer viewer;
     private final int metersPerWorld;
-    private @Nullable Texture terrainTexture;
+    private @Nullable Texture terrainPlain;
+    private @Nullable Texture terrainUnwalkable;
 
     // Visibility control from SelectionDelegate
     private boolean mapModeActive = false;
@@ -82,18 +89,18 @@ public final class MinimapPanel extends GUIObject {
         // Enable picking for mouse clicks
         setCanFocus(true);
 
-        // BUILD HEIGHT-COLORED TERRAIN TEXTURE
-        buildTerrainTexture(heightMap);
+        // BAKE BOTH TERRAIN VARIANTS ONCE; TOGGLE ONLY SWAPS WHICH IS DRAWN
+        bakeTerrainTextures(heightMap);
 
         // Set initial dimensions based on expanded state
         updateDimensions();
     }
 
     /**
-     * Bake a height-colored terrain texture with isolines into one GPU upload.
-     * Height drives land/water color; access_grid only tints unwalkable land (cliffs).
+     * Prebake height-colored terrain with and without unwalkable tint.
+     * Toggle swaps textures; no rebake on click.
      */
-    private void buildTerrainTexture(@NonNull HeightMap heightMap) {
+    private void bakeTerrainTextures(@NonNull HeightMap heightMap) {
         int gridSize = heightMap.getGridUnitsPerWorld();
         float seaLevel = heightMap.getSeaLevelMeters();
         float[][] heights = sampleHeights(heightMap, gridSize);
@@ -101,11 +108,21 @@ public final class MinimapPanel extends GUIObject {
         float maxHeight = maxHeight(heights, seaLevel);
         float contourInterval = landContourInterval(seaLevel, maxHeight);
 
-        GLIntImage image = new GLIntImage(gridSize, gridSize, GL11.GL_RGBA);
-        fillHeightColors(image, heights, accessGrid, seaLevel, maxHeight);
-        bakeIsolines(image, heights, accessGrid, seaLevel, maxHeight, contourInterval);
+        terrainPlain = bakeTerrainTexture(heights, accessGrid, seaLevel, maxHeight, contourInterval, false);
+        terrainUnwalkable = bakeTerrainTexture(heights, accessGrid, seaLevel, maxHeight, contourInterval, true);
+    }
 
-        terrainTexture = new Texture(
+    private static @NonNull Texture bakeTerrainTexture(
+            float @NonNull [] @NonNull [] heights,
+            boolean @NonNull [] @NonNull [] accessGrid,
+            float seaLevel,
+            float maxHeight,
+            float contourInterval,
+            boolean showUnwalkable) {
+        GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
+        fillHeightColors(image, heights, accessGrid, seaLevel, maxHeight, showUnwalkable);
+        bakeIsolines(image, heights, accessGrid, seaLevel, maxHeight, contourInterval, showUnwalkable);
+        return new Texture(
                 new GLIntImage[]{image},
                 GL11.GL_RGBA,
                 GL11.GL_NEAREST,
@@ -113,6 +130,10 @@ public final class MinimapPanel extends GUIObject {
                 GL12.GL_CLAMP_TO_EDGE,
                 GL12.GL_CLAMP_TO_EDGE
         );
+    }
+
+    private @Nullable Texture activeTerrainTexture() {
+        return Settings.getSettings().minimap_show_unwalkable ? terrainUnwalkable : terrainPlain;
     }
 
     private static float @NonNull [] @NonNull [] sampleHeights(@NonNull HeightMap heightMap, int gridSize) {
@@ -147,13 +168,14 @@ public final class MinimapPanel extends GUIObject {
             float @NonNull [] @NonNull [] heights,
             boolean @NonNull [] @NonNull [] accessGrid,
             float seaLevel,
-            float maxHeight) {
+            float maxHeight,
+            boolean showUnwalkable) {
         int gridSize = heights.length;
         for (int y = 0; y < gridSize; y++) {
             for (int x = 0; x < gridSize; x++) {
                 float h = heights[y][x];
                 boolean walkable = isWalkableCell(accessGrid, x, y);
-                image.putPixel(x, y, packABGR(terrainColor(h, seaLevel, maxHeight, walkable)));
+                image.putPixel(x, y, packABGR(terrainColor(h, seaLevel, maxHeight, walkable, showUnwalkable)));
             }
         }
     }
@@ -167,7 +189,8 @@ public final class MinimapPanel extends GUIObject {
             boolean @NonNull [] @NonNull [] accessGrid,
             float seaLevel,
             float maxHeight,
-            float contourInterval) {
+            float contourInterval,
+            boolean showUnwalkable) {
         int gridSize = heights.length;
         for (int y = 0; y < gridSize; y++) {
             for (int x = 0; x < gridSize; x++) {
@@ -178,7 +201,7 @@ public final class MinimapPanel extends GUIObject {
                 }
                 boolean walkable = isWalkableCell(accessGrid, x, y);
                 Vector4f shaded = lerpColor(
-                        terrainColor(h, seaLevel, maxHeight, walkable),
+                        terrainColor(h, seaLevel, maxHeight, walkable, showUnwalkable),
                         ISOLINE_COLOR,
                         ISOLINE_BLEND * strength);
                 image.putPixel(x, y, packABGR(shaded));
@@ -191,12 +214,17 @@ public final class MinimapPanel extends GUIObject {
     }
 
     /**
-     * Height colormap, with a light mauve tint on unwalkable land (steep / blocked cells).
+     * Height colormap, with an optional red tint on unwalkable land (steep / blocked cells).
      * Water stays on the blue ramp even when access_grid is false.
      */
-    static @NonNull Vector4f terrainColor(float height, float seaLevel, float maxHeight, boolean walkable) {
+    static @NonNull Vector4f terrainColor(
+            float height,
+            float seaLevel,
+            float maxHeight,
+            boolean walkable,
+            boolean showUnwalkable) {
         Vector4f color = heightToColor(height, seaLevel, maxHeight);
-        if (height > seaLevel && !walkable) {
+        if (showUnwalkable && height > seaLevel && !walkable) {
             return lerpColor(color, UNWALKABLE_COLOR, UNWALKABLE_BLEND);
         }
         return color;
@@ -376,6 +404,7 @@ public final class MinimapPanel extends GUIObject {
         // Header bar
         int headerY = posY + h - HEADER_HEIGHT - BORDER_WIDTH;
         renderer.drawColoredQuad(posX + BORDER_WIDTH, headerY, w - 2 * BORDER_WIDTH, HEADER_HEIGHT, HEADER_COLOR);
+        drawUnwalkableToggle(renderer, posX, posY, h);
 
         // Collapse indicator
         float indicatorX = posX + w / 2f - 4;
@@ -389,8 +418,9 @@ public final class MinimapPanel extends GUIObject {
         float mapH = h - HEADER_HEIGHT - 2 * BORDER_WIDTH;
 
         // Terrain texture
-        if (terrainTexture != null) {
-            renderer.drawTexture(terrainTexture, mapX, mapY, mapW, mapH,
+        Texture terrain = activeTerrainTexture();
+        if (terrain != null) {
+            renderer.drawTexture(terrain, mapX, mapY, mapW, mapH,
                     0f, 0f, 1f, 1f, Color.WHITE);
         }
 
@@ -530,6 +560,7 @@ public final class MinimapPanel extends GUIObject {
         // Header bar (clickable area to collapse)
         int headerY = h - HEADER_HEIGHT - BORDER_WIDTH;
         renderer.drawColoredQuad(BORDER_WIDTH, headerY, w - 2 * BORDER_WIDTH, HEADER_HEIGHT, HEADER_COLOR);
+        drawUnwalkableToggle(renderer, 0, 0, h);
 
         // Draw collapse indicator (small triangle or minus)
         float indicatorX = w / 2f - 4;
@@ -543,8 +574,9 @@ public final class MinimapPanel extends GUIObject {
         float mapH = h - HEADER_HEIGHT - 2 * BORDER_WIDTH;
 
         // Terrain texture
-        if (terrainTexture != null) {
-            renderer.drawTexture(terrainTexture, mapX, mapY, mapW, mapH,
+        Texture terrain = activeTerrainTexture();
+        if (terrain != null) {
+            renderer.drawTexture(terrain, mapX, mapY, mapW, mapH,
                     0f, 0f, 1f, 1f, Color.WHITE);
         }
 
@@ -663,27 +695,28 @@ public final class MinimapPanel extends GUIObject {
     protected void mousePressed(@NonNull MouseButton button, int x, int y) {
         if (button == MouseButton.LEFT) {
             if (Settings.getSettings().minimap_expanded) {
-                // In expanded mode, check where the click occurred
+                if (hitUnwalkableToggle(x, y)) {
+                    toggleUnwalkableTint();
+                    return;
+                }
+
                 int headerY = getHeight() - HEADER_HEIGHT - BORDER_WIDTH;
-                
+
                 if (y >= headerY) {
                     // Header click - toggle expand/collapse
                     toggleExpanded();
-                } else if (y >= BORDER_WIDTH && x >= BORDER_WIDTH && 
+                } else if (y >= BORDER_WIDTH && x >= BORDER_WIDTH &&
                            x < getWidth() - BORDER_WIDTH && y < headerY) {
                     // Map area click - move camera to clicked location
                     float mapW = getWidth() - 2 * BORDER_WIDTH;
                     float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-                    
-                    // Convert click position to normalized coordinates (0-1)
+
                     float normX = (x - BORDER_WIDTH) / mapW;
                     float normY = (y - BORDER_WIDTH) / mapH;
-                    
-                    // Convert to world coordinates
+
                     float worldX = normX * metersPerWorld;
                     float worldY = normY * metersPerWorld;
-                    
-                    // Move camera to clicked location
+
                     moveCameraTo(worldX, worldY);
                 }
             } else {
@@ -692,7 +725,47 @@ public final class MinimapPanel extends GUIObject {
             }
         }
     }
-    
+
+    private void drawUnwalkableToggle(
+            @NonNull GUIRenderer renderer,
+            int posX,
+            int posY,
+            int panelH) {
+        int btnX = posX + unwalkableToggleLocalX();
+        int btnY = posY + unwalkableToggleLocalY(panelH);
+        boolean on = Settings.getSettings().minimap_show_unwalkable;
+        renderer.drawColoredQuad(btnX, btnY, TOGGLE_SIZE, TOGGLE_SIZE, on ? TOGGLE_ON_COLOR : TOGGLE_OFF_COLOR);
+        renderer.drawColoredQuad(btnX, btnY, TOGGLE_SIZE, 1, BORDER_COLOR);
+        renderer.drawColoredQuad(btnX, btnY + TOGGLE_SIZE - 1, TOGGLE_SIZE, 1, BORDER_COLOR);
+        renderer.drawColoredQuad(btnX, btnY, 1, TOGGLE_SIZE, BORDER_COLOR);
+        renderer.drawColoredQuad(btnX + TOGGLE_SIZE - 1, btnY, 1, TOGGLE_SIZE, BORDER_COLOR);
+    }
+
+    private static int unwalkableToggleLocalX() {
+        return BORDER_WIDTH + TOGGLE_PAD;
+    }
+
+    private static int unwalkableToggleLocalY(int panelH) {
+        int headerY = panelH - HEADER_HEIGHT - BORDER_WIDTH;
+        return headerY + (HEADER_HEIGHT - TOGGLE_SIZE) / 2;
+    }
+
+    static boolean hitUnwalkableToggle(int localX, int localY, int panelH) {
+        int btnX = unwalkableToggleLocalX();
+        int btnY = unwalkableToggleLocalY(panelH);
+        return localX >= btnX && localX < btnX + TOGGLE_SIZE
+                && localY >= btnY && localY < btnY + TOGGLE_SIZE;
+    }
+
+    private boolean hitUnwalkableToggle(int localX, int localY) {
+        return hitUnwalkableToggle(localX, localY, getHeight());
+    }
+
+    private void toggleUnwalkableTint() {
+        Settings settings = Settings.getSettings();
+        settings.minimap_show_unwalkable = !settings.minimap_show_unwalkable;
+    }
+
     private void toggleExpanded() {
         Settings.getSettings().minimap_expanded = !Settings.getSettings().minimap_expanded;
         updateDimensions();
@@ -762,27 +835,29 @@ public final class MinimapPanel extends GUIObject {
         int localY = screenY - minimapY;
         
         if (Settings.getSettings().minimap_expanded) {
+            if (hitUnwalkableToggle(localX, localY)) {
+                toggleUnwalkableTint();
+                return true;
+            }
+
             int headerY = getHeight() - HEADER_HEIGHT - BORDER_WIDTH;
-            
+
             if (localY >= headerY) {
                 // Header click - toggle expand/collapse
                 toggleExpanded();
                 return true;
-            } else if (localY >= BORDER_WIDTH && localX >= BORDER_WIDTH && 
+            } else if (localY >= BORDER_WIDTH && localX >= BORDER_WIDTH &&
                        localX < getWidth() - BORDER_WIDTH && localY < headerY) {
                 // Map area click - move camera to clicked location
                 float mapW = getWidth() - 2 * BORDER_WIDTH;
                 float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-                
-                // Convert click position to normalized coordinates (0-1)
+
                 float normX = (localX - BORDER_WIDTH) / mapW;
                 float normY = (localY - BORDER_WIDTH) / mapH;
-                
-                // Convert to world coordinates
+
                 float worldX = normX * metersPerWorld;
                 float worldY = normY * metersPerWorld;
-                
-                // Move camera to clicked location
+
                 moveCameraTo(worldX, worldY);
                 return true;
             }
@@ -813,9 +888,13 @@ public final class MinimapPanel extends GUIObject {
      * destroyed (e.g., game over, returning to menu), not during temporary delegate changes.
      */
     public void dispose() {
-        if (terrainTexture != null) {
-            terrainTexture.close();
-            terrainTexture = null;
+        if (terrainPlain != null) {
+            terrainPlain.close();
+            terrainPlain = null;
+        }
+        if (terrainUnwalkable != null) {
+            terrainUnwalkable.close();
+            terrainUnwalkable = null;
         }
     }
 }

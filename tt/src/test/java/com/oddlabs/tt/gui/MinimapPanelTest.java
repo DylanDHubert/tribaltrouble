@@ -192,23 +192,35 @@ class MinimapPanelTest {
         }
 
         @Test
-        @DisplayName("Unwalkable land gets a slight mauve tint")
+        @DisplayName("Unwalkable land gets a slight red tint")
         void unwalkableLandTint() {
             float landHeight = SEA + 8f;
-            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true);
-            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false);
+            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true, true);
+            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false, true);
 
             assertNotEquals(walkable.x(), blocked.x(), 0.001f);
-            assertTrue(blocked.x() > walkable.x() || blocked.z() > walkable.z(),
-                    "Blocked land should shift toward the unwalkable tint");
+            assertTrue(blocked.x() > walkable.x(),
+                    "Blocked land should shift toward red");
+        }
+
+        @Test
+        @DisplayName("Unwalkable tint can be disabled")
+        void unwalkableTintToggleOff() {
+            float landHeight = SEA + 8f;
+            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true, false);
+            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false, false);
+
+            assertEquals(walkable.x(), blocked.x(), 0.0001f);
+            assertEquals(walkable.y(), blocked.y(), 0.0001f);
+            assertEquals(walkable.z(), blocked.z(), 0.0001f);
         }
 
         @Test
         @DisplayName("Unwalkable water stays on the blue ramp")
         void unwalkableWaterUntinted() {
             float waterHeight = SEA * 0.5f;
-            Vector4f walkableFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, true);
-            Vector4f blockedFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, false);
+            Vector4f walkableFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, true, true);
+            Vector4f blockedFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, false, true);
 
             assertEquals(walkableFlag.x(), blockedFlag.x(), 0.0001f);
             assertEquals(walkableFlag.y(), blockedFlag.y(), 0.0001f);
@@ -629,15 +641,26 @@ class MinimapPanelTest {
         @DisplayName("Click in map area is not header click")
         void clickInMapArea() {
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
-            
+
             int headerLocalY = minimapH - HEADER_HEIGHT - BORDER_WIDTH;
-            
+
             // Click in map area (local Y coordinate)
             int localClickY = 50;  // Below header
-            
+
             boolean isHeaderClick = localClickY >= headerLocalY;
-            
+
             assertFalse(isHeaderClick, "Click in map area should not be header click");
+        }
+
+        @Test
+        @DisplayName("Unwalkable toggle hitbox is in header left")
+        void unwalkableToggleHitbox() {
+            // MATCH PRODUCTION MinimapPanel LAYOUT (MAP 250, HEADER 15, BORDER 2)
+            int panelH = 250 + 15 + 2 * 2;
+            int btnX = 2 + 2;
+            int btnY = panelH - 15 - 2 + (15 - 11) / 2;
+            assertTrue(MinimapPanel.hitUnwalkableToggle(btnX + 1, btnY + 1, panelH));
+            assertFalse(MinimapPanel.hitUnwalkableToggle(80, btnY + 1, panelH));
         }
     }
 
