@@ -74,6 +74,8 @@ public final class Settings implements Serializable {
     public boolean invert_camera_pitch = false;
     public boolean aggressive_units = false;
     public boolean show_compass = true;
+    public boolean show_minimap = true;
+    public boolean minimap_expanded = true;
     public boolean confine_cursor = true;
 
     // gameplay
@@ -226,6 +228,8 @@ public final class Settings implements Serializable {
         setProperty(props, "invert_camera_pitch", invert_camera_pitch, defaults.invert_camera_pitch);
         setProperty(props, "aggressive_units", aggressive_units, defaults.aggressive_units);
         setProperty(props, "show_compass", show_compass, defaults.show_compass);
+        setProperty(props, "show_minimap", show_minimap, defaults.show_minimap);
+        setProperty(props, "minimap_expanded", minimap_expanded, defaults.minimap_expanded);
         setProperty(props, "confine_cursor", confine_cursor, defaults.confine_cursor);
         setProperty(props, "gamespeed", gamespeed, defaults.gamespeed);
         setProperty(props, "mapmode_delay", mapmode_delay, defaults.mapmode_delay);
@@ -291,6 +295,8 @@ public final class Settings implements Serializable {
         invert_camera_pitch = getBoolean(props, "invert_camera_pitch", invert_camera_pitch);
         aggressive_units = getBoolean(props, "aggressive_units", aggressive_units);
         show_compass = getBoolean(props, "show_compass", show_compass);
+        show_minimap = getBoolean(props, "show_minimap", show_minimap);
+        minimap_expanded = getBoolean(props, "minimap_expanded", minimap_expanded);
         confine_cursor = getBoolean(props, "confine_cursor", confine_cursor);
         gamespeed = getInt(props, "gamespeed", gamespeed);
         mapmode_delay = getFloat(props, "mapmode_delay", mapmode_delay);

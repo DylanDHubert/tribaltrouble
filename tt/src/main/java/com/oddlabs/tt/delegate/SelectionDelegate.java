@@ -65,6 +65,7 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
         this.game_camera = (GameCamera) getCamera();
         displayChangedNotify(getGUIRoot().getWidth(), getGUIRoot().getHeight());
         addChild(getViewer().getPanel());
+        // Minimap is now created by WorldViewer and rendered via InGameDelegate.render2D()
         chat_form = new InGameChatForm(getViewer().getGUIRoot().getInfoPrinter(), getViewer());
         chat_form.addCloseListener(() -> {
             if (Renderer.getLocalInput().getInputManager().isActive(GameAction.GLOBAL_CHAT)) {
@@ -116,6 +117,7 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
                         selection = false;
                         getViewer().getPicker().pickRotate((GameCamera) getCamera());
                         map_mode = true;
+                        getViewer().getMinimapPanel().setMapModeActive(true);
                         if (observer)
                             observer_label.remove();
                         else
@@ -327,6 +329,7 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
 
     public void exitMapMode() {
         map_mode = false;
+        getViewer().getMinimapPanel().setMapModeActive(false);
         getCamera().disable();
         // Snap GameCamera's current position to its target so there's no
         // interpolation lag when switching back from MapCamera
@@ -463,6 +466,18 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        // Check if clicking on minimap first
+        if (button == MouseButton.LEFT) {
+            int screenWidth = getGUIRoot().getWidth();
+            int screenHeight = getGUIRoot().getHeight();
+            var minimap = getViewer().getMinimapPanel();
+            if (minimap.containsScreenPoint(x, y, screenWidth, screenHeight)) {
+                if (minimap.handleScreenClick(x, y, screenWidth, screenHeight)) {
+                    return; // Click was handled by minimap
+                }
+            }
+        }
+        
         if (!map_mode) {
             if (!observer) {
                 var inputManager = Renderer.getLocalInput().getInputManager();
@@ -507,6 +522,9 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
 
     @Override
     public void render2D(@NonNull GUIRenderer renderer) {
+        // Render minimap (from InGameDelegate)
+        super.render2D(renderer);
+
         if (com.oddlabs.tt.global.Settings.getSettings().show_compass && getCamera() != null) {
             float horizAngle = getCamera().getState().getHorizAngle();
             CompassRenderer.render(renderer, Skin.getSkin().getEditFont(),
@@ -538,5 +556,6 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
     public void displayChangedNotify(int width, int height) {
         super.displayChangedNotify(width, height);
         observer_label.setPos((width - observer_label.getWidth()) / 2, height - observer_label.getHeight());
+        // Minimap positioning is now handled by renderAtPosition() in InGameDelegate.render2D()
     }
 }

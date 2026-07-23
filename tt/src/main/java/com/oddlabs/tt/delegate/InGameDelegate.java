@@ -3,6 +3,7 @@ package com.oddlabs.tt.delegate;
 import com.oddlabs.tt.camera.Camera;
 import com.oddlabs.tt.camera.StaticCamera;
 import com.oddlabs.tt.global.Settings;
+import com.oddlabs.tt.gui.MouseButton;
 import com.oddlabs.tt.input.GameAction;
 import com.oddlabs.tt.input.InputEvent;
 import com.oddlabs.tt.input.InputPhase;
@@ -10,6 +11,7 @@ import com.oddlabs.tt.model.Abilities;
 import com.oddlabs.tt.model.Building;
 import com.oddlabs.tt.model.Race;
 import com.oddlabs.tt.model.Unit;
+import com.oddlabs.tt.render.GUIRenderer;
 import com.oddlabs.tt.render.LandscapeLocation;
 import com.oddlabs.tt.viewer.Cheat;
 import com.oddlabs.tt.viewer.WorldViewer;
@@ -142,5 +144,35 @@ public abstract class InGameDelegate extends CameraDelegate<Camera> {
 
     public final @NonNull WorldViewer getViewer() {
         return viewer;
+    }
+
+    /**
+     * Handle mouse clicks. Forwards clicks to the minimap if within its bounds.
+     */
+    @Override
+    public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        if (button == MouseButton.LEFT) {
+            // Check if the click is on the minimap
+            int screenWidth = getGUIRoot().getWidth();
+            int screenHeight = getGUIRoot().getHeight();
+            
+            if (viewer.getMinimapPanel().containsScreenPoint(x, y, screenWidth, screenHeight)) {
+                if (viewer.getMinimapPanel().handleScreenClick(x, y, screenWidth, screenHeight)) {
+                    return; // Click was handled by minimap
+                }
+            }
+        }
+        // Let subclass handle the click
+    }
+
+    /**
+     * Render 2D overlays. Renders the minimap for all in-game delegates.
+     * Subclasses should call super.render2D() to ensure the minimap is rendered.
+     */
+    @Override
+    public void render2D(@NonNull GUIRenderer renderer) {
+        // Render the minimap - this ensures it stays visible even when delegates like
+        // TargetDelegate are pushed on top of SelectionDelegate
+        viewer.getMinimapPanel().renderAtPosition(renderer, getGUIRoot().getWidth(), getGUIRoot().getHeight());
     }
 }
