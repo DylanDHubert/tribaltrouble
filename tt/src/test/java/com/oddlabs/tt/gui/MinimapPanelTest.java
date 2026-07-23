@@ -78,42 +78,6 @@ class MinimapPanelTest {
             int alpha = (packed >> 24) & 0xFF;
             assertTrue(alpha >= 127 && alpha <= 128, "Alpha should be ~128, was " + alpha);
         }
-
-        @Test
-        @DisplayName("Land color (brown) packs correctly")
-        void packLandColor() {
-            // LAND_COLOR = new Vector4f(0.545f, 0.353f, 0.169f, 1f)
-            Vector4fc landColor = new Vector4f(0.545f, 0.353f, 0.169f, 1f);
-            int packed = packABGR(landColor);
-            
-            int a = (packed >> 24) & 0xFF;
-            int b = (packed >> 16) & 0xFF;
-            int g = (packed >> 8) & 0xFF;
-            int r = packed & 0xFF;
-            
-            assertEquals(255, a, "Alpha should be 255");
-            assertEquals((int)(0.169f * 255), b, 1, "Blue component");
-            assertEquals((int)(0.353f * 255), g, 1, "Green component");
-            assertEquals((int)(0.545f * 255), r, 1, "Red component");
-        }
-
-        @Test
-        @DisplayName("Water color (blue) packs correctly")
-        void packWaterColor() {
-            // WATER_COLOR = new Vector4f(0.2f, 0.4f, 0.8f, 1f)
-            Vector4fc waterColor = new Vector4f(0.2f, 0.4f, 0.8f, 1f);
-            int packed = packABGR(waterColor);
-            
-            int a = (packed >> 24) & 0xFF;
-            int b = (packed >> 16) & 0xFF;
-            int g = (packed >> 8) & 0xFF;
-            int r = packed & 0xFF;
-            
-            assertEquals(255, a, "Alpha should be 255");
-            assertEquals((int)(0.8f * 255), b, 1, "Blue component");
-            assertEquals((int)(0.4f * 255), g, 1, "Green component");
-            assertEquals((int)(0.2f * 255), r, 1, "Red component");
-        }
     }
 
     @Nested
@@ -165,21 +129,164 @@ class MinimapPanelTest {
     }
 
     @Nested
-    @DisplayName("Height-Based Land Detection")
-    class HeightBasedLandTests {
+    @DisplayName("Height Colormap")
+    class HeightColormapTests {
 
-        @ParameterizedTest
-        @DisplayName("Land detection based on sea level")
-        @CsvSource({
-            "0.15, 0.1, true",   // Above sea level = land
-            "0.05, 0.1, false",  // Below sea level = water
-            "0.1, 0.1, false",   // At sea level = water (not strictly above)
-            "0.5, 0.1, true",    // Well above sea level
-            "0.0, 0.1, false",   // Zero height
-        })
-        void heightBasedLandDetection(float height, float seaLevel, boolean expectedIsLand) {
-            boolean isLand = height > seaLevel;
-            assertEquals(expectedIsLand, isLand);
+        private static final float SEA = 3.2f;
+        private static final float MAX = 32f;
+
+        @Test
+        @DisplayName("Deep water is darker blue than shallow water")
+        void deepWaterDarkerThanShallow() {
+            Vector4f deep = MinimapPanel.heightToColor(0f, SEA, MAX);
+            Vector4f shallow = MinimapPanel.heightToColor(SEA, SEA, MAX);
+
+            assertTrue(deep.z() < shallow.z() || deep.y() < shallow.y(),
+                    "Deep water should be darker/cooler than shallow");
+            assertTrue(deep.z() > deep.x(), "Water should be blue-dominant");
+            assertTrue(shallow.z() > shallow.x(), "Shallow water should be blue-dominant");
+        }
+
+        @Test
+        @DisplayName("Just above sea level is beach-toned")
+        void beachNearSeaLevel() {
+            Vector4f beach = MinimapPanel.heightToColor(SEA + 0.01f, SEA, MAX);
+            assertTrue(beach.x() > beach.z(), "Beach should be warmer than blue water");
+            assertTrue(beach.y() > 0.4f, "Beach should have visible green/yellow");
+        }
+
+        @Test
+        @DisplayName("Mid land is greener than peaks")
+        void midLandGreenerThanPeak() {
+            float midHeight = SEA + (MAX - SEA) * 0.3f;
+            Vector4f mid = MinimapPanel.heightToColor(midHeight, SEA, MAX);
+            Vector4f peak = MinimapPanel.heightToColor(MAX, SEA, MAX);
+
+            assertTrue(mid.y() > mid.x(), "Lowland should be green-dominant");
+            assertTrue(peak.x() > mid.x() || peak.y() > mid.y(),
+                    "Peak should be lighter than mid land");
+            assertEquals(peak.x(), peak.y(), 0.05f, "Peak should be near-neutral light");
+        }
+
+        @Test
+        @DisplayName("Higher land is not the same color as lower land")
+        void heightChangesColor() {
+            Vector4f low = MinimapPanel.heightToColor(SEA + 1f, SEA, MAX);
+            Vector4f high = MinimapPanel.heightToColor(SEA + 20f, SEA, MAX);
+
+            float delta = Math.abs(low.x() - high.x())
+                    + Math.abs(low.y() - high.y())
+                    + Math.abs(low.z() - high.z());
+            assertTrue(delta > 0.1f, "Different heights should map to different colors");
+        }
+
+        @Test
+        @DisplayName("Sea level boundary differs from land just above it")
+        void seaBoundaryDistinctFromLand() {
+            Vector4f water = MinimapPanel.heightToColor(SEA, SEA, MAX);
+            Vector4f land = MinimapPanel.heightToColor(SEA + 0.01f, SEA, MAX);
+
+            assertTrue(water.z() > water.x(), "At sea level should still be water blue");
+            assertTrue(land.x() > land.z() || land.y() > land.z(),
+                    "Just above sea should leave blue water tones");
+        }
+
+        @Test
+        @DisplayName("Unwalkable land gets a slight mauve tint")
+        void unwalkableLandTint() {
+            float landHeight = SEA + 8f;
+            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true);
+            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false);
+
+            assertNotEquals(walkable.x(), blocked.x(), 0.001f);
+            assertTrue(blocked.x() > walkable.x() || blocked.z() > walkable.z(),
+                    "Blocked land should shift toward the unwalkable tint");
+        }
+
+        @Test
+        @DisplayName("Unwalkable water stays on the blue ramp")
+        void unwalkableWaterUntinted() {
+            float waterHeight = SEA * 0.5f;
+            Vector4f walkableFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, true);
+            Vector4f blockedFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, false);
+
+            assertEquals(walkableFlag.x(), blockedFlag.x(), 0.0001f);
+            assertEquals(walkableFlag.y(), blockedFlag.y(), 0.0001f);
+            assertEquals(walkableFlag.z(), blockedFlag.z(), 0.0001f);
+        }
+    }
+
+    @Nested
+    @DisplayName("Isolines")
+    class IsolineTests {
+
+        private static final float SEA = 3.2f;
+        private static final float MAX = 32f;
+        private static final float INTERVAL = MinimapPanel.landContourInterval(SEA, MAX);
+
+        @Test
+        @DisplayName("Coastline crossing detects land/water edge")
+        void coastlineCrossing() {
+            assertTrue(MinimapPanel.crossesContour(SEA - 0.5f, SEA + 0.5f, SEA, INTERVAL));
+            assertTrue(MinimapPanel.crossesContour(SEA + 0.5f, SEA - 0.5f, SEA, INTERVAL));
+        }
+
+        @Test
+        @DisplayName("Same side of coastline is not a contour")
+        void sameSideNoContour() {
+            assertFalse(MinimapPanel.crossesContour(SEA - 1f, SEA - 0.2f, SEA, INTERVAL));
+            assertFalse(MinimapPanel.crossesContour(SEA + 1f, SEA + 1.1f, SEA, INTERVAL));
+        }
+
+        @Test
+        @DisplayName("Land contour band changes across interval")
+        void landBandCrossing() {
+            float low = SEA + INTERVAL * 0.5f;
+            float high = SEA + INTERVAL * 1.5f;
+            assertTrue(MinimapPanel.crossesContour(low, high, SEA, INTERVAL));
+            assertNotEquals(
+                    MinimapPanel.landContourBand(low, SEA, INTERVAL),
+                    MinimapPanel.landContourBand(high, SEA, INTERVAL));
+        }
+
+        @Test
+        @DisplayName("Water-only pairs never form land isolines")
+        void waterPairsSkipLandIsolines() {
+            assertFalse(MinimapPanel.crossesContour(0f, SEA * 0.5f, SEA, INTERVAL));
+        }
+
+        @Test
+        @DisplayName("Contour interval divides land relief into expected bands")
+        void contourIntervalMatchesCount() {
+            float interval = MinimapPanel.landContourInterval(SEA, MAX);
+            assertEquals((MAX - SEA) / 12f, interval, 0.0001f);
+            assertEquals(0, MinimapPanel.landContourBand(SEA + 0.01f, SEA, interval));
+            assertEquals(11, MinimapPanel.landContourBand(MAX - 0.01f, SEA, interval));
+        }
+
+        @Test
+        @DisplayName("Exact contour height has full soft strength")
+        void fullStrengthOnContour() {
+            float onLine = SEA + INTERVAL;
+            float strength = MinimapPanel.isolineStrength(onLine, INTERVAL * 0.5f, SEA, INTERVAL);
+            assertEquals(1f, strength, 0.001f);
+        }
+
+        @Test
+        @DisplayName("Midway between contours is weaker than on-contour")
+        void weakerBetweenContours() {
+            float gradient = INTERVAL * 0.5f;
+            float onLine = MinimapPanel.isolineStrength(SEA + INTERVAL, gradient, SEA, INTERVAL);
+            float mid = MinimapPanel.isolineStrength(SEA + INTERVAL * 1.5f, gradient, SEA, INTERVAL);
+            assertTrue(mid < onLine, "Mid-band should be softer than on-contour");
+            assertTrue(mid < 0.25f, "Mid-band should stay relatively light, was " + mid);
+        }
+
+        @Test
+        @DisplayName("Distance to coastline is absolute height delta")
+        void coastDistance() {
+            assertEquals(0.4f, MinimapPanel.distanceToNearestContour(SEA - 0.4f, SEA, INTERVAL), 0.0001f);
+            assertEquals(0f, MinimapPanel.distanceToNearestContour(SEA, SEA, INTERVAL), 0.0001f);
         }
     }
 

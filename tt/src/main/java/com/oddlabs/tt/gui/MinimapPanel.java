@@ -21,33 +21,49 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 /**
- * A collapsible minimap panel that shows terrain (land/water) and the local player's
- * units and buildings. Anchored to the bottom-left of the screen.
+ * A collapsible minimap panel that shows a height-colored terrain map with prebaked isolines
+ * and the local player's units and buildings. Anchored to the bottom-left of the screen.
  */
 public final class MinimapPanel extends GUIObject {
 
     // Layout constants
-    private static final int MAP_SIZE = 150;
-    private static final int HEADER_HEIGHT = 18;
+    private static final int MAP_SIZE = 250;
+    private static final int HEADER_HEIGHT = 15;
     private static final int COLLAPSED_SIZE = 24;
     private static final int BORDER_WIDTH = 2;
-    private static final int MARGIN_LEFT = 12;
-    private static final int MARGIN_BOTTOM = 12;
+    private static final int MARGIN_LEFT = 15;
+    private static final int MARGIN_BOTTOM = 15;
 
     // Colors
     private static final Vector4fc BG_COLOR = new Vector4f(0f, 0f, 0f, 0.5f);
     private static final Vector4fc BORDER_COLOR = new Vector4f(0.4f, 0.4f, 0.4f, 0.8f);
     private static final Vector4fc HEADER_COLOR = new Vector4f(0.2f, 0.2f, 0.2f, 0.7f);
-    private static final Vector4fc LAND_COLOR = new Vector4f(0.545f, 0.353f, 0.169f, 1f);   // brown #8B5A2B
-    private static final Vector4fc WATER_COLOR = new Vector4f(0.2f, 0.4f, 0.8f, 1f);        // blue #3366CC
     private static final Vector4fc UNIT_COLOR = new Vector4f(0.3f, 1f, 0.3f, 1f);           // green
     private static final Vector4fc BUILDING_COLOR = new Vector4f(0.3f, 1f, 0.3f, 1f);       // green
     private static final Vector4fc VIEWPORT_COLOR = new Vector4f(1f, 1f, 1f, 1f);           // white
 
-    // Dot sizes
-    private static final float UNIT_DOT_SIZE = 2f;
-    private static final float BUILDING_DOT_SIZE = 4f;
-    
+    // HEIGHTMAP COLOR STOPS (DEEP WATER -> PEAK)
+    private static final Vector4fc DEEP_WATER_COLOR = new Vector4f(0.05f, 0.15f, 0.35f, 1f);
+    private static final Vector4fc SHALLOW_WATER_COLOR = new Vector4f(0.2f, 0.45f, 0.75f, 1f);
+    private static final Vector4fc BEACH_COLOR = new Vector4f(0.76f, 0.68f, 0.42f, 1f);
+    private static final Vector4fc LOWLAND_COLOR = new Vector4f(0.35f, 0.52f, 0.22f, 1f);
+    private static final Vector4fc HIGHLAND_COLOR = new Vector4f(0.55f, 0.42f, 0.28f, 1f);
+    private static final Vector4fc PEAK_COLOR = new Vector4f(0.85f, 0.85f, 0.82f, 1f);
+
+    // PREBAKED ISOLINES
+    private static final int LAND_CONTOUR_COUNT = 12;
+    private static final Vector4fc ISOLINE_COLOR = new Vector4f(0.08f, 0.08f, 0.08f, 1f);
+    private static final float ISOLINE_BLEND = 0.55f;
+    private static final float ISOLINE_SOFT_PIXELS = 1.25f;
+
+    // UNWALKABLE LAND TINT (CLIFFS / STEEP SLOPES — NOT WATER)
+    private static final Vector4fc UNWALKABLE_COLOR = new Vector4f(0.42f, 0.28f, 0.34f, 1f);
+    private static final float UNWALKABLE_BLEND = 0.32f;
+
+    // Dot sizes // DYLAN: SLIGHTLY REDUCED SIZE FOR AESTHETICS.
+    private static final float UNIT_DOT_SIZE = 1f;
+    private static final float BUILDING_DOT_SIZE = 2f;
+
     // Viewport indicator
     private static final float VIEWPORT_LINE_THICKNESS = 1f;
 
@@ -66,7 +82,7 @@ public final class MinimapPanel extends GUIObject {
         // Enable picking for mouse clicks
         setCanFocus(true);
 
-        // Build terrain texture from access grid
+        // BUILD HEIGHT-COLORED TERRAIN TEXTURE
         buildTerrainTexture(heightMap);
 
         // Set initial dimensions based on expanded state
@@ -74,35 +90,21 @@ public final class MinimapPanel extends GUIObject {
     }
 
     /**
-     * Build a texture from the heightmap using actual terrain height.
-     * Land (above sea level) = brown, Water (below sea level) = blue.
-     * 
-     * Note: We use height data instead of access_grid because access_grid shows
-     * "walkable terrain" (gentle slopes on main landmass), not actual land vs water.
-     * Steep cliffs and disconnected islands would incorrectly appear as water if we
-     * used access_grid.
+     * Bake a height-colored terrain texture with isolines into one GPU upload.
+     * Height drives land/water color; access_grid only tints unwalkable land (cliffs).
      */
     private void buildTerrainTexture(@NonNull HeightMap heightMap) {
         int gridSize = heightMap.getGridUnitsPerWorld();
         float seaLevel = heightMap.getSeaLevelMeters();
+        float[][] heights = sampleHeights(heightMap, gridSize);
+        boolean[][] accessGrid = heightMap.getAccessGrid();
+        float maxHeight = maxHeight(heights, seaLevel);
+        float contourInterval = landContourInterval(seaLevel, maxHeight);
 
-        // Create image at grid resolution
         GLIntImage image = new GLIntImage(gridSize, gridSize, GL11.GL_RGBA);
+        fillHeightColors(image, heights, accessGrid, seaLevel, maxHeight);
+        bakeIsolines(image, heights, accessGrid, seaLevel, maxHeight, contourInterval);
 
-        // Pack colors as ABGR for OpenGL
-        int landPixel = packABGR(LAND_COLOR);
-        int waterPixel = packABGR(WATER_COLOR);
-
-        for (int y = 0; y < gridSize; y++) {
-            for (int x = 0; x < gridSize; x++) {
-                // Use height to determine land vs water - above sea level = land
-                float height = heightMap.getHeight(x, y);
-                boolean isLand = height > seaLevel;
-                image.putPixel(x, y, isLand ? landPixel : waterPixel);
-            }
-        }
-
-        // Upload to GPU with nearest filtering for crisp pixels
         terrainTexture = new Texture(
                 new GLIntImage[]{image},
                 GL11.GL_RGBA,
@@ -111,6 +113,188 @@ public final class MinimapPanel extends GUIObject {
                 GL12.GL_CLAMP_TO_EDGE,
                 GL12.GL_CLAMP_TO_EDGE
         );
+    }
+
+    private static float @NonNull [] @NonNull [] sampleHeights(@NonNull HeightMap heightMap, int gridSize) {
+        float[][] heights = new float[gridSize][gridSize];
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                heights[y][x] = heightMap.getHeight(x, y);
+            }
+        }
+        return heights;
+    }
+
+    private static float maxHeight(float @NonNull [] @NonNull [] heights, float seaLevel) {
+        float max = seaLevel;
+        for (float[] row : heights) {
+            for (float height : row) {
+                if (height > max) {
+                    max = height;
+                }
+            }
+        }
+        // AVOID DIVIDE-BY-ZERO ON FLAT WATER WORLDS
+        return max > seaLevel ? max : seaLevel + 1f;
+    }
+
+    static float landContourInterval(float seaLevel, float maxHeight) {
+        return Math.max((maxHeight - seaLevel) / LAND_CONTOUR_COUNT, 0.001f);
+    }
+
+    private static void fillHeightColors(
+            @NonNull GLIntImage image,
+            float @NonNull [] @NonNull [] heights,
+            boolean @NonNull [] @NonNull [] accessGrid,
+            float seaLevel,
+            float maxHeight) {
+        int gridSize = heights.length;
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                float h = heights[y][x];
+                boolean walkable = isWalkableCell(accessGrid, x, y);
+                image.putPixel(x, y, packABGR(terrainColor(h, seaLevel, maxHeight, walkable)));
+            }
+        }
+    }
+
+    /**
+     * Soft-shade pixels near coastline and land contours (anti-aliased via local slope).
+     */
+    private static void bakeIsolines(
+            @NonNull GLIntImage image,
+            float @NonNull [] @NonNull [] heights,
+            boolean @NonNull [] @NonNull [] accessGrid,
+            float seaLevel,
+            float maxHeight,
+            float contourInterval) {
+        int gridSize = heights.length;
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                float h = heights[y][x];
+                float strength = isolineStrength(h, localGradient(heights, x, y), seaLevel, contourInterval);
+                if (strength <= 0f) {
+                    continue;
+                }
+                boolean walkable = isWalkableCell(accessGrid, x, y);
+                Vector4f shaded = lerpColor(
+                        terrainColor(h, seaLevel, maxHeight, walkable),
+                        ISOLINE_COLOR,
+                        ISOLINE_BLEND * strength);
+                image.putPixel(x, y, packABGR(shaded));
+            }
+        }
+    }
+
+    private static boolean isWalkableCell(boolean @NonNull [] @NonNull [] accessGrid, int x, int y) {
+        return y < accessGrid.length && x < accessGrid[y].length && accessGrid[y][x];
+    }
+
+    /**
+     * Height colormap, with a light mauve tint on unwalkable land (steep / blocked cells).
+     * Water stays on the blue ramp even when access_grid is false.
+     */
+    static @NonNull Vector4f terrainColor(float height, float seaLevel, float maxHeight, boolean walkable) {
+        Vector4f color = heightToColor(height, seaLevel, maxHeight);
+        if (height > seaLevel && !walkable) {
+            return lerpColor(color, UNWALKABLE_COLOR, UNWALKABLE_BLEND);
+        }
+        return color;
+    }
+
+    private static float localGradient(float @NonNull [] @NonNull [] heights, int x, int y) {
+        int gridSize = heights.length;
+        float h = heights[y][x];
+        float grad = 0f;
+        if (x + 1 < gridSize) {
+            grad = Math.max(grad, Math.abs(heights[y][x + 1] - h));
+        }
+        if (x > 0) {
+            grad = Math.max(grad, Math.abs(heights[y][x - 1] - h));
+        }
+        if (y + 1 < gridSize) {
+            grad = Math.max(grad, Math.abs(heights[y + 1][x] - h));
+        }
+        if (y > 0) {
+            grad = Math.max(grad, Math.abs(heights[y - 1][x] - h));
+        }
+        return grad;
+    }
+
+    /**
+     * Soft coverage for the nearest contour, in ~pixel units using local height gradient.
+     */
+    static float isolineStrength(float height, float gradient, float seaLevel, float contourInterval) {
+        float heightDist = distanceToNearestContour(height, seaLevel, contourInterval);
+        float pixelDist = heightDist / Math.max(gradient, 1e-4f);
+        return clamp01(1f - pixelDist / ISOLINE_SOFT_PIXELS);
+    }
+
+    static float distanceToNearestContour(float height, float seaLevel, float contourInterval) {
+        float coastDist = Math.abs(height - seaLevel);
+        if (height <= seaLevel) {
+            return coastDist;
+        }
+        float phase = (height - seaLevel) / contourInterval;
+        float frac = phase - (float) Math.floor(phase);
+        float landDist = Math.min(frac, 1f - frac) * contourInterval;
+        return Math.min(coastDist, landDist);
+    }
+
+    /**
+     * True when the segment between two heights crosses the coastline or a land contour.
+     */
+    static boolean crossesContour(float h0, float h1, float seaLevel, float contourInterval) {
+        boolean land0 = h0 > seaLevel;
+        boolean land1 = h1 > seaLevel;
+        if (land0 != land1) {
+            return true;
+        }
+        if (!land0) {
+            return false;
+        }
+        return landContourBand(h0, seaLevel, contourInterval)
+                != landContourBand(h1, seaLevel, contourInterval);
+    }
+
+    static int landContourBand(float height, float seaLevel, float contourInterval) {
+        return (int) Math.floor((height - seaLevel) / contourInterval);
+    }
+
+    /**
+     * Map a world height to a hypsometric color.
+     * Below sea level: deep water → shallow water.
+     * Above sea level: beach → lowland → highland → peak.
+     */
+    static @NonNull Vector4f heightToColor(float height, float seaLevel, float maxHeight) {
+        if (height <= seaLevel) {
+            // 0 AT DEEPEST (SEA*0), 1 AT SEA LEVEL — ASSUME FLOOR NEAR 0
+            float t = seaLevel > 0f ? clamp01(height / seaLevel) : 0f;
+            return lerpColor(DEEP_WATER_COLOR, SHALLOW_WATER_COLOR, t);
+        }
+
+        float landT = clamp01((height - seaLevel) / (maxHeight - seaLevel));
+        if (landT < 0.15f) {
+            return lerpColor(BEACH_COLOR, LOWLAND_COLOR, landT / 0.15f);
+        } else if (landT < 0.55f) {
+            return lerpColor(LOWLAND_COLOR, HIGHLAND_COLOR, (landT - 0.15f) / 0.40f);
+        } else {
+            return lerpColor(HIGHLAND_COLOR, PEAK_COLOR, (landT - 0.55f) / 0.45f);
+        }
+    }
+
+    private static @NonNull Vector4f lerpColor(@NonNull Vector4fc a, @NonNull Vector4fc b, float t) {
+        t = clamp01(t);
+        return new Vector4f(
+                a.x() + (b.x() - a.x()) * t,
+                a.y() + (b.y() - a.y()) * t,
+                a.z() + (b.z() - a.z()) * t,
+                a.w() + (b.w() - a.w()) * t
+        );
+    }
+
+    private static float clamp01(float v) {
+        return Math.max(0f, Math.min(1f, v));
     }
 
     private static int packABGR(@NonNull Vector4fc color) {
