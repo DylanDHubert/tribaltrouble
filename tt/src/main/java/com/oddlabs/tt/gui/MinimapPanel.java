@@ -167,6 +167,8 @@ public final class MinimapPanel extends GUIObject {
 
     /**
      * Downsample the landscape diffuse colormap (true ground color, no trees) and stamp isolines.
+     * Underwater cells use the height water ramp — diffuse seabottom is intentionally purple and
+     * is covered by the ocean mesh in-game, so it looks wrong as "surface water" on the minimap.
      */
     private static @NonNull Texture bakeSatelliteBase(
             @NonNull Texture diffuseMap,
@@ -175,7 +177,7 @@ public final class MinimapPanel extends GUIObject {
             float contourInterval) {
         GLIntImage diffusePixels = readTexturePixels(diffuseMap);
         GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
-        fillSatelliteColors(image, diffusePixels);
+        fillSatelliteColors(image, diffusePixels, heights, seaLevel);
         bakeIsolines(image, heights, seaLevel, contourInterval);
         return toNearestTexture(image);
     }
@@ -199,12 +201,20 @@ public final class MinimapPanel extends GUIObject {
 
     private static void fillSatelliteColors(
             @NonNull GLIntImage dest,
-            @NonNull GLIntImage diffuse) {
+            @NonNull GLIntImage diffuse,
+            float @NonNull [] @NonNull [] heights,
+            float seaLevel) {
         int gridSize = dest.getWidth();
         int srcW = diffuse.getWidth();
         int srcH = diffuse.getHeight();
         for (int y = 0; y < gridSize; y++) {
             for (int x = 0; x < gridSize; x++) {
+                float h = heights[y][x];
+                if (h <= seaLevel) {
+                    // SURFACE WATER LOOK — NOT THE PURPLE SEABOTTOM UNDER THE OCEAN MESH
+                    dest.putPixel(x, y, packABGR(heightToColor(h, seaLevel, seaLevel + 1f)));
+                    continue;
+                }
                 int sx = Math.min(srcW - 1, (x * srcW + srcW / 2) / gridSize);
                 int sy = Math.min(srcH - 1, (y * srcH + srcH / 2) / gridSize);
                 // FORCE OPAQUE — DIFFUSE MAY CARRY UNUSED ALPHA
