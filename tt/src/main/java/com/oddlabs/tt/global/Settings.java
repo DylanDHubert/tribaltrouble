@@ -77,6 +77,7 @@ public final class Settings implements Serializable {
     public boolean show_minimap = true;
     public boolean minimap_expanded = true;
     public boolean minimap_show_unwalkable = true;
+    public boolean minimap_satellite = false;
     public boolean confine_cursor = true;
 
     // gameplay
@@ -232,6 +233,7 @@ public final class Settings implements Serializable {
         setProperty(props, "show_minimap", show_minimap, defaults.show_minimap);
         setProperty(props, "minimap_expanded", minimap_expanded, defaults.minimap_expanded);
         setProperty(props, "minimap_show_unwalkable", minimap_show_unwalkable, defaults.minimap_show_unwalkable);
+        setProperty(props, "minimap_satellite", minimap_satellite, defaults.minimap_satellite);
         setProperty(props, "confine_cursor", confine_cursor, defaults.confine_cursor);
         setProperty(props, "gamespeed", gamespeed, defaults.gamespeed);
         setProperty(props, "mapmode_delay", mapmode_delay, defaults.mapmode_delay);
@@ -300,6 +302,7 @@ public final class Settings implements Serializable {
         show_minimap = getBoolean(props, "show_minimap", show_minimap);
         minimap_expanded = getBoolean(props, "minimap_expanded", minimap_expanded);
         minimap_show_unwalkable = getBoolean(props, "minimap_show_unwalkable", minimap_show_unwalkable);
+        minimap_satellite = getBoolean(props, "minimap_satellite", minimap_satellite);
         confine_cursor = getBoolean(props, "confine_cursor", confine_cursor);
         gamespeed = getInt(props, "gamespeed", gamespeed);
         mapmode_delay = getFloat(props, "mapmode_delay", mapmode_delay);

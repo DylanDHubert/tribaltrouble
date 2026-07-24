@@ -24,12 +24,13 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 
 /**
- * A collapsible minimap panel that shows a height-colored terrain map with prebaked isolines
- * and the local player's units and buildings. Anchored to the bottom-left of the screen.
- * Drawn via {@link #renderAtPosition} (not as a GUI-tree child) so it stays visible across delegates.
+ * A collapsible minimap panel that shows terrain (height or satellite), overlays, and local units.
+ * Anchored to the bottom-left of the screen. Drawn via {@link #renderAtPosition} (not as a GUI-tree
+ * child) so it stays visible across delegates.
  *
- * <p>Terrain is a single base texture plus optional overlay layers (e.g. unwalkable). Each texture
- * is baked once at map load; toggles only change which overlays are drawn.
+ * <p>Two base textures are baked once at map load (height colormap and landscape diffuse
+ * "satellite"), both with isolines. Header toggles only swap which base is drawn / which overlays
+ * are visible.
  */
 public final class MinimapPanel extends GUIObject {
 
@@ -68,11 +69,12 @@ public final class MinimapPanel extends GUIObject {
     private static final float UNWALKABLE_BLEND = 0.38f;
     private static final Vector4fc TRANSPARENT = new Vector4f(0f, 0f, 0f, 0f);
 
-    // HEADER TOGGLE FOR UNWALKABLE OVERLAY
+    // HEADER TOGGLES (UNWALKABLE + SATELLITE)
     private static final int TOGGLE_PAD = 2;
     private static final int TOGGLE_SIZE = 11;
     private static final Vector4fc TOGGLE_ON_COLOR = new Vector4f(0.9f, 0.2f, 0.15f, 1f);
     private static final Vector4fc TOGGLE_OFF_COLOR = new Vector4f(0.35f, 0.35f, 0.35f, 1f);
+    private static final Vector4fc SATELLITE_TOGGLE_ON_COLOR = new Vector4f(0.4f, 0.75f, 0.35f, 1f);
 
     // Dot sizes // DYLAN: SLIGHTLY REDUCED SIZE FOR AESTHETICS.
     private static final float UNIT_DOT_SIZE = 1f;
@@ -112,7 +114,8 @@ public final class MinimapPanel extends GUIObject {
 
     private final @NonNull WorldViewer viewer;
     private final int metersPerWorld;
-    private @Nullable Texture terrainBase;
+    private @Nullable Texture terrainHeightBase;
+    private @Nullable Texture terrainSatelliteBase;
     private final @NonNull List<OverlayLayer> overlays = new ArrayList<>();
 
     // Visibility control from SelectionDelegate
@@ -123,14 +126,14 @@ public final class MinimapPanel extends GUIObject {
         HeightMap heightMap = viewer.getWorld().getHeightMap();
         this.metersPerWorld = heightMap.getMetersPerWorld();
 
-        // BAKE BASE + OVERLAYS ONCE AT MAP LOAD; TOGGLES ONLY CHANGE DRAW VISIBILITY
+        // BAKE BOTH BASES + OVERLAYS ONCE AT MAP LOAD; TOGGLES ONLY CHANGE DRAW VISIBILITY
         bakeLayers(heightMap);
 
         updateDimensions();
     }
 
     /**
-     * Sample heights once, then bake the base map and each overlay texture exactly once.
+     * Sample heights once, then bake height + satellite bases (with isolines) and overlays once each.
      */
     private void bakeLayers(@NonNull HeightMap heightMap) {
         int gridSize = heightMap.getGridUnitsPerWorld();
@@ -140,21 +143,78 @@ public final class MinimapPanel extends GUIObject {
         float maxHeight = maxHeight(heights, seaLevel);
         float contourInterval = landContourInterval(seaLevel, maxHeight);
 
-        terrainBase = bakeTerrainBase(heights, seaLevel, maxHeight, contourInterval);
+        terrainHeightBase = bakeHeightBase(heights, seaLevel, maxHeight, contourInterval);
+        terrainSatelliteBase = bakeSatelliteBase(
+                viewer.getLandscapeRenderer().getDiffuseMap(),
+                heights,
+                seaLevel,
+                contourInterval);
         overlays.add(new OverlayLayer(
                 bakeUnwalkableOverlay(heights, accessGrid, seaLevel),
                 () -> Settings.getSettings().minimap_show_unwalkable));
     }
 
-    private static @NonNull Texture bakeTerrainBase(
+    private static @NonNull Texture bakeHeightBase(
             float @NonNull [] @NonNull [] heights,
             float seaLevel,
             float maxHeight,
             float contourInterval) {
         GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
         fillHeightColors(image, heights, seaLevel, maxHeight);
-        bakeIsolines(image, heights, seaLevel, maxHeight, contourInterval);
+        bakeIsolines(image, heights, seaLevel, contourInterval);
         return toNearestTexture(image);
+    }
+
+    /**
+     * Downsample the landscape diffuse colormap (true ground color, no trees) and stamp isolines.
+     */
+    private static @NonNull Texture bakeSatelliteBase(
+            @NonNull Texture diffuseMap,
+            float @NonNull [] @NonNull [] heights,
+            float seaLevel,
+            float contourInterval) {
+        GLIntImage diffusePixels = readTexturePixels(diffuseMap);
+        GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
+        fillSatelliteColors(image, diffusePixels);
+        bakeIsolines(image, heights, seaLevel, contourInterval);
+        return toNearestTexture(image);
+    }
+
+    private static @NonNull GLIntImage readTexturePixels(@NonNull Texture texture) {
+        GLIntImage image = new GLIntImage(texture.getWidth(), texture.getHeight(), GL11.GL_RGBA);
+        int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.getHandle());
+        try {
+            GL11.glGetTexImage(
+                    GL11.GL_TEXTURE_2D,
+                    0,
+                    image.getGLFormat(),
+                    image.getGLType(),
+                    image.getPixels());
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
+        }
+        return image;
+    }
+
+    private static void fillSatelliteColors(
+            @NonNull GLIntImage dest,
+            @NonNull GLIntImage diffuse) {
+        int gridSize = dest.getWidth();
+        int srcW = diffuse.getWidth();
+        int srcH = diffuse.getHeight();
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                int sx = Math.min(srcW - 1, (x * srcW + srcW / 2) / gridSize);
+                int sy = Math.min(srcH - 1, (y * srcH + srcH / 2) / gridSize);
+                // FORCE OPAQUE — DIFFUSE MAY CARRY UNUSED ALPHA
+                dest.putPixel(x, y, diffuse.getPixel(sx, sy) | 0xFF000000);
+            }
+        }
+    }
+
+    private @Nullable Texture activeTerrainBase() {
+        return Settings.getSettings().minimap_satellite ? terrainSatelliteBase : terrainHeightBase;
     }
 
     private static @NonNull Texture bakeUnwalkableOverlay(
@@ -225,12 +285,12 @@ public final class MinimapPanel extends GUIObject {
 
     /**
      * Soft-shade pixels near coastline and land contours (anti-aliased via local slope).
+     * Reads the already-filled pixel so height and satellite bases share one isoline pass.
      */
     private static void bakeIsolines(
             @NonNull GLIntImage image,
             float @NonNull [] @NonNull [] heights,
             float seaLevel,
-            float maxHeight,
             float contourInterval) {
         int gridSize = heights.length;
         for (int y = 0; y < gridSize; y++) {
@@ -241,7 +301,7 @@ public final class MinimapPanel extends GUIObject {
                     continue;
                 }
                 Vector4f shaded = lerpColor(
-                        heightToColor(h, seaLevel, maxHeight),
+                        unpackABGR(image.getPixel(x, y)),
                         ISOLINE_COLOR,
                         ISOLINE_BLEND * strength);
                 image.putPixel(x, y, packABGR(shaded));
@@ -347,6 +407,14 @@ public final class MinimapPanel extends GUIObject {
         return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
+    static @NonNull Vector4f unpackABGR(int packed) {
+        float r = (packed & 0xFF) / 255f;
+        float g = ((packed >> 8) & 0xFF) / 255f;
+        float b = ((packed >> 16) & 0xFF) / 255f;
+        float a = ((packed >> 24) & 0xFF) / 255f;
+        return new Vector4f(r, g, b, a);
+    }
+
     private void updateDimensions() {
         if (Settings.getSettings().minimap_expanded) {
             setDim(MAP_SIZE + 2 * BORDER_WIDTH, MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH);
@@ -397,7 +465,7 @@ public final class MinimapPanel extends GUIObject {
 
         int headerY = posY + h - HEADER_HEIGHT - BORDER_WIDTH;
         renderer.drawColoredQuad(posX + BORDER_WIDTH, headerY, w - 2 * BORDER_WIDTH, HEADER_HEIGHT, HEADER_COLOR);
-        drawUnwalkableToggle(renderer, posX, posY, h);
+        drawHeaderToggles(renderer, posX, posY, h);
 
         float indicatorX = posX + w / 2f - 4;
         float indicatorY = headerY + HEADER_HEIGHT / 2f - 2;
@@ -422,8 +490,9 @@ public final class MinimapPanel extends GUIObject {
             float mapY,
             float mapW,
             float mapH) {
-        if (terrainBase != null) {
-            renderer.drawTexture(terrainBase, mapX, mapY, mapW, mapH, 0f, 0f, 1f, 1f, Color.WHITE);
+        Texture terrain = activeTerrainBase();
+        if (terrain != null) {
+            renderer.drawTexture(terrain, mapX, mapY, mapW, mapH, 0f, 0f, 1f, 1f, Color.WHITE);
         }
         for (OverlayLayer layer : overlays) {
             if (layer.isVisible()) {
@@ -505,15 +574,32 @@ public final class MinimapPanel extends GUIObject {
         // NOT IN THE GUI TREE — DRAWING HAPPENS VIA renderAtPosition FROM InGameDelegate
     }
 
-    private void drawUnwalkableToggle(
+    private void drawHeaderToggles(
             @NonNull GUIRenderer renderer,
             int posX,
             int posY,
             int panelH) {
-        int btnX = posX + unwalkableToggleLocalX();
-        int btnY = posY + unwalkableToggleLocalY(panelH);
-        boolean on = Settings.getSettings().minimap_show_unwalkable;
-        renderer.drawColoredQuad(btnX, btnY, TOGGLE_SIZE, TOGGLE_SIZE, on ? TOGGLE_ON_COLOR : TOGGLE_OFF_COLOR);
+        drawToggleButton(
+                renderer,
+                posX + unwalkableToggleLocalX(),
+                posY + headerToggleLocalY(panelH),
+                Settings.getSettings().minimap_show_unwalkable,
+                TOGGLE_ON_COLOR);
+        drawToggleButton(
+                renderer,
+                posX + satelliteToggleLocalX(),
+                posY + headerToggleLocalY(panelH),
+                Settings.getSettings().minimap_satellite,
+                SATELLITE_TOGGLE_ON_COLOR);
+    }
+
+    private void drawToggleButton(
+            @NonNull GUIRenderer renderer,
+            int btnX,
+            int btnY,
+            boolean on,
+            @NonNull Vector4fc onColor) {
+        renderer.drawColoredQuad(btnX, btnY, TOGGLE_SIZE, TOGGLE_SIZE, on ? onColor : TOGGLE_OFF_COLOR);
         renderer.drawColoredQuad(btnX, btnY, TOGGLE_SIZE, 1, BORDER_COLOR);
         renderer.drawColoredQuad(btnX, btnY + TOGGLE_SIZE - 1, TOGGLE_SIZE, 1, BORDER_COLOR);
         renderer.drawColoredQuad(btnX, btnY, 1, TOGGLE_SIZE, BORDER_COLOR);
@@ -524,25 +610,44 @@ public final class MinimapPanel extends GUIObject {
         return BORDER_WIDTH + TOGGLE_PAD;
     }
 
-    private static int unwalkableToggleLocalY(int panelH) {
+    private static int satelliteToggleLocalX() {
+        return unwalkableToggleLocalX() + TOGGLE_SIZE + TOGGLE_PAD;
+    }
+
+    private static int headerToggleLocalY(int panelH) {
         int headerY = panelH - HEADER_HEIGHT - BORDER_WIDTH;
         return headerY + (HEADER_HEIGHT - TOGGLE_SIZE) / 2;
     }
 
-    static boolean hitUnwalkableToggle(int localX, int localY, int panelH) {
-        int btnX = unwalkableToggleLocalX();
-        int btnY = unwalkableToggleLocalY(panelH);
+    static boolean hitToggle(int localX, int localY, int btnX, int btnY) {
         return localX >= btnX && localX < btnX + TOGGLE_SIZE
                 && localY >= btnY && localY < btnY + TOGGLE_SIZE;
+    }
+
+    static boolean hitUnwalkableToggle(int localX, int localY, int panelH) {
+        return hitToggle(localX, localY, unwalkableToggleLocalX(), headerToggleLocalY(panelH));
+    }
+
+    static boolean hitSatelliteToggle(int localX, int localY, int panelH) {
+        return hitToggle(localX, localY, satelliteToggleLocalX(), headerToggleLocalY(panelH));
     }
 
     private boolean hitUnwalkableToggle(int localX, int localY) {
         return hitUnwalkableToggle(localX, localY, getHeight());
     }
 
+    private boolean hitSatelliteToggle(int localX, int localY) {
+        return hitSatelliteToggle(localX, localY, getHeight());
+    }
+
     private void toggleUnwalkableTint() {
         Settings settings = Settings.getSettings();
         settings.minimap_show_unwalkable = !settings.minimap_show_unwalkable;
+    }
+
+    private void toggleSatelliteView() {
+        Settings settings = Settings.getSettings();
+        settings.minimap_satellite = !settings.minimap_satellite;
     }
 
     private void toggleExpanded() {
@@ -592,6 +697,10 @@ public final class MinimapPanel extends GUIObject {
                 toggleUnwalkableTint();
                 return true;
             }
+            if (hitSatelliteToggle(localX, localY)) {
+                toggleSatelliteView();
+                return true;
+            }
 
             int headerY = getHeight() - HEADER_HEIGHT - BORDER_WIDTH;
 
@@ -629,9 +738,13 @@ public final class MinimapPanel extends GUIObject {
      * (e.g. game over / return to menu), not during temporary delegate changes.
      */
     public void dispose() {
-        if (terrainBase != null) {
-            terrainBase.close();
-            terrainBase = null;
+        if (terrainHeightBase != null) {
+            terrainHeightBase.close();
+            terrainHeightBase = null;
+        }
+        if (terrainSatelliteBase != null) {
+            terrainSatelliteBase.close();
+            terrainSatelliteBase = null;
         }
         for (OverlayLayer layer : overlays) {
             layer.close();

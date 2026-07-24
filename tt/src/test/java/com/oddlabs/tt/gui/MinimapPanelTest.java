@@ -609,6 +609,18 @@ class MinimapPanelTest {
             assertTrue(MinimapPanel.hitUnwalkableToggle(btnX + 1, btnY + 1, panelH));
             assertFalse(MinimapPanel.hitUnwalkableToggle(80, btnY + 1, panelH));
         }
+
+        @Test
+        @DisplayName("Satellite toggle hitbox sits beside unwalkable toggle")
+        void satelliteToggleHitbox() {
+            int panelH = 250 + 15 + 2 * 2;
+            int unwalkableX = 2 + 2;
+            int satelliteX = unwalkableX + 11 + 2;
+            int btnY = panelH - 15 - 2 + (15 - 11) / 2;
+            assertTrue(MinimapPanel.hitSatelliteToggle(satelliteX + 1, btnY + 1, panelH));
+            assertFalse(MinimapPanel.hitSatelliteToggle(unwalkableX + 1, btnY + 1, panelH));
+            assertFalse(MinimapPanel.hitUnwalkableToggle(satelliteX + 1, btnY + 1, panelH));
+        }
     }
 
     // Helper method that mirrors MinimapPanel.packABGR

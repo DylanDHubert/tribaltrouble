@@ -281,7 +281,7 @@ public final class WorldViewer implements Animated, AutoCloseable {
         }
     }
 
-    private @NonNull LandscapeRenderer getLandscapeRenderer() {
+    public @NonNull LandscapeRenderer getLandscapeRenderer() {
         return landscape_renderer;
     }
 
