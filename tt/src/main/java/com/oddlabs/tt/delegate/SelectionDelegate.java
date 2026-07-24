@@ -466,18 +466,10 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
-        // Check if clicking on minimap first
-        if (button == MouseButton.LEFT) {
-            int screenWidth = getGUIRoot().getWidth();
-            int screenHeight = getGUIRoot().getHeight();
-            var minimap = getViewer().getMinimapPanel();
-            if (minimap.containsScreenPoint(x, y, screenWidth, screenHeight)) {
-                if (minimap.handleScreenClick(x, y, screenWidth, screenHeight)) {
-                    return; // Click was handled by minimap
-                }
-            }
+        if (tryHandleMinimapClick(button, x, y)) {
+            return;
         }
-        
+
         if (!map_mode) {
             if (!observer) {
                 var inputManager = Renderer.getLocalInput().getInputManager();

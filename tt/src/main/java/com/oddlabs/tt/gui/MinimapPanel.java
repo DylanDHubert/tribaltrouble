@@ -1,6 +1,5 @@
 package com.oddlabs.tt.gui;
 
-import com.oddlabs.tt.camera.CameraState;
 import com.oddlabs.tt.camera.GameCamera;
 import com.oddlabs.tt.delegate.JumpDelegate;
 import com.oddlabs.tt.global.Settings;
@@ -20,9 +19,17 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+
 /**
  * A collapsible minimap panel that shows a height-colored terrain map with prebaked isolines
  * and the local player's units and buildings. Anchored to the bottom-left of the screen.
+ * Drawn via {@link #renderAtPosition} (not as a GUI-tree child) so it stays visible across delegates.
+ *
+ * <p>Terrain is a single base texture plus optional overlay layers (e.g. unwalkable). Each texture
+ * is baked once at map load; toggles only change which overlays are drawn.
  */
 public final class MinimapPanel extends GUIObject {
 
@@ -56,11 +63,12 @@ public final class MinimapPanel extends GUIObject {
     private static final float ISOLINE_BLEND = 0.55f;
     private static final float ISOLINE_SOFT_PIXELS = 1.25f;
 
-    // UNWALKABLE LAND TINT (CLIFFS / STEEP SLOPES — NOT WATER)
+    // UNWALKABLE OVERLAY (CLIFFS / STEEP SLOPES — NOT WATER); ALPHA = BLEND OVER BASE
     private static final Vector4fc UNWALKABLE_COLOR = new Vector4f(0.85f, 0.18f, 0.12f, 1f);
     private static final float UNWALKABLE_BLEND = 0.38f;
+    private static final Vector4fc TRANSPARENT = new Vector4f(0f, 0f, 0f, 0f);
 
-    // HEADER TOGGLE FOR UNWALKABLE TINT
+    // HEADER TOGGLE FOR UNWALKABLE OVERLAY
     private static final int TOGGLE_PAD = 2;
     private static final int TOGGLE_SIZE = 11;
     private static final Vector4fc TOGGLE_ON_COLOR = new Vector4f(0.9f, 0.2f, 0.15f, 1f);
@@ -72,11 +80,40 @@ public final class MinimapPanel extends GUIObject {
 
     // Viewport indicator
     private static final float VIEWPORT_LINE_THICKNESS = 1f;
+    private final float[] viewportWorldXY = new float[8];
+    private final float[] viewportMapXY = new float[8];
+
+    /**
+     * A prebaked overlay drawn on top of the base terrain when {@link #visible} is true.
+     * Add more at load time for future layers (resources, fog, ownership, …).
+     */
+    private static final class OverlayLayer implements AutoCloseable {
+        private final @NonNull Texture texture;
+        private final @NonNull BooleanSupplier visible;
+
+        OverlayLayer(@NonNull Texture texture, @NonNull BooleanSupplier visible) {
+            this.texture = texture;
+            this.visible = visible;
+        }
+
+        boolean isVisible() {
+            return visible.getAsBoolean();
+        }
+
+        @NonNull Texture texture() {
+            return texture;
+        }
+
+        @Override
+        public void close() {
+            texture.close();
+        }
+    }
 
     private final @NonNull WorldViewer viewer;
     private final int metersPerWorld;
-    private @Nullable Texture terrainPlain;
-    private @Nullable Texture terrainUnwalkable;
+    private @Nullable Texture terrainBase;
+    private final @NonNull List<OverlayLayer> overlays = new ArrayList<>();
 
     // Visibility control from SelectionDelegate
     private boolean mapModeActive = false;
@@ -86,21 +123,16 @@ public final class MinimapPanel extends GUIObject {
         HeightMap heightMap = viewer.getWorld().getHeightMap();
         this.metersPerWorld = heightMap.getMetersPerWorld();
 
-        // Enable picking for mouse clicks
-        setCanFocus(true);
+        // BAKE BASE + OVERLAYS ONCE AT MAP LOAD; TOGGLES ONLY CHANGE DRAW VISIBILITY
+        bakeLayers(heightMap);
 
-        // BAKE BOTH TERRAIN VARIANTS ONCE; TOGGLE ONLY SWAPS WHICH IS DRAWN
-        bakeTerrainTextures(heightMap);
-
-        // Set initial dimensions based on expanded state
         updateDimensions();
     }
 
     /**
-     * Prebake height-colored terrain with and without unwalkable tint.
-     * Toggle swaps textures; no rebake on click.
+     * Sample heights once, then bake the base map and each overlay texture exactly once.
      */
-    private void bakeTerrainTextures(@NonNull HeightMap heightMap) {
+    private void bakeLayers(@NonNull HeightMap heightMap) {
         int gridSize = heightMap.getGridUnitsPerWorld();
         float seaLevel = heightMap.getSeaLevelMeters();
         float[][] heights = sampleHeights(heightMap, gridSize);
@@ -108,20 +140,39 @@ public final class MinimapPanel extends GUIObject {
         float maxHeight = maxHeight(heights, seaLevel);
         float contourInterval = landContourInterval(seaLevel, maxHeight);
 
-        terrainPlain = bakeTerrainTexture(heights, accessGrid, seaLevel, maxHeight, contourInterval, false);
-        terrainUnwalkable = bakeTerrainTexture(heights, accessGrid, seaLevel, maxHeight, contourInterval, true);
+        terrainBase = bakeTerrainBase(heights, seaLevel, maxHeight, contourInterval);
+        overlays.add(new OverlayLayer(
+                bakeUnwalkableOverlay(heights, accessGrid, seaLevel),
+                () -> Settings.getSettings().minimap_show_unwalkable));
     }
 
-    private static @NonNull Texture bakeTerrainTexture(
+    private static @NonNull Texture bakeTerrainBase(
             float @NonNull [] @NonNull [] heights,
-            boolean @NonNull [] @NonNull [] accessGrid,
             float seaLevel,
             float maxHeight,
-            float contourInterval,
-            boolean showUnwalkable) {
+            float contourInterval) {
         GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
-        fillHeightColors(image, heights, accessGrid, seaLevel, maxHeight, showUnwalkable);
-        bakeIsolines(image, heights, accessGrid, seaLevel, maxHeight, contourInterval, showUnwalkable);
+        fillHeightColors(image, heights, seaLevel, maxHeight);
+        bakeIsolines(image, heights, seaLevel, maxHeight, contourInterval);
+        return toNearestTexture(image);
+    }
+
+    private static @NonNull Texture bakeUnwalkableOverlay(
+            float @NonNull [] @NonNull [] heights,
+            boolean @NonNull [] @NonNull [] accessGrid,
+            float seaLevel) {
+        GLIntImage image = new GLIntImage(heights.length, heights.length, GL11.GL_RGBA);
+        int gridSize = heights.length;
+        for (int y = 0; y < gridSize; y++) {
+            for (int x = 0; x < gridSize; x++) {
+                image.putPixel(x, y, packABGR(unwalkableOverlayPixel(
+                        heights[y][x], seaLevel, isWalkableCell(accessGrid, x, y))));
+            }
+        }
+        return toNearestTexture(image);
+    }
+
+    private static @NonNull Texture toNearestTexture(@NonNull GLIntImage image) {
         return new Texture(
                 new GLIntImage[]{image},
                 GL11.GL_RGBA,
@@ -130,10 +181,6 @@ public final class MinimapPanel extends GUIObject {
                 GL12.GL_CLAMP_TO_EDGE,
                 GL12.GL_CLAMP_TO_EDGE
         );
-    }
-
-    private @Nullable Texture activeTerrainTexture() {
-        return Settings.getSettings().minimap_show_unwalkable ? terrainUnwalkable : terrainPlain;
     }
 
     private static float @NonNull [] @NonNull [] sampleHeights(@NonNull HeightMap heightMap, int gridSize) {
@@ -166,16 +213,12 @@ public final class MinimapPanel extends GUIObject {
     private static void fillHeightColors(
             @NonNull GLIntImage image,
             float @NonNull [] @NonNull [] heights,
-            boolean @NonNull [] @NonNull [] accessGrid,
             float seaLevel,
-            float maxHeight,
-            boolean showUnwalkable) {
+            float maxHeight) {
         int gridSize = heights.length;
         for (int y = 0; y < gridSize; y++) {
             for (int x = 0; x < gridSize; x++) {
-                float h = heights[y][x];
-                boolean walkable = isWalkableCell(accessGrid, x, y);
-                image.putPixel(x, y, packABGR(terrainColor(h, seaLevel, maxHeight, walkable, showUnwalkable)));
+                image.putPixel(x, y, packABGR(heightToColor(heights[y][x], seaLevel, maxHeight)));
             }
         }
     }
@@ -186,11 +229,9 @@ public final class MinimapPanel extends GUIObject {
     private static void bakeIsolines(
             @NonNull GLIntImage image,
             float @NonNull [] @NonNull [] heights,
-            boolean @NonNull [] @NonNull [] accessGrid,
             float seaLevel,
             float maxHeight,
-            float contourInterval,
-            boolean showUnwalkable) {
+            float contourInterval) {
         int gridSize = heights.length;
         for (int y = 0; y < gridSize; y++) {
             for (int x = 0; x < gridSize; x++) {
@@ -199,9 +240,8 @@ public final class MinimapPanel extends GUIObject {
                 if (strength <= 0f) {
                     continue;
                 }
-                boolean walkable = isWalkableCell(accessGrid, x, y);
                 Vector4f shaded = lerpColor(
-                        terrainColor(h, seaLevel, maxHeight, walkable, showUnwalkable),
+                        heightToColor(h, seaLevel, maxHeight),
                         ISOLINE_COLOR,
                         ISOLINE_BLEND * strength);
                 image.putPixel(x, y, packABGR(shaded));
@@ -214,20 +254,14 @@ public final class MinimapPanel extends GUIObject {
     }
 
     /**
-     * Height colormap, with an optional red tint on unwalkable land (steep / blocked cells).
-     * Water stays on the blue ramp even when access_grid is false.
+     * Overlay pixel for unwalkable land. Transparent on water and walkable cells.
+     * Alpha equals {@link #UNWALKABLE_BLEND} so SRC_ALPHA blending matches the old in-bake lerp.
      */
-    static @NonNull Vector4f terrainColor(
-            float height,
-            float seaLevel,
-            float maxHeight,
-            boolean walkable,
-            boolean showUnwalkable) {
-        Vector4f color = heightToColor(height, seaLevel, maxHeight);
-        if (showUnwalkable && height > seaLevel && !walkable) {
-            return lerpColor(color, UNWALKABLE_COLOR, UNWALKABLE_BLEND);
+    static @NonNull Vector4f unwalkableOverlayPixel(float height, float seaLevel, boolean walkable) {
+        if (height > seaLevel && !walkable) {
+            return new Vector4f(UNWALKABLE_COLOR.x(), UNWALKABLE_COLOR.y(), UNWALKABLE_COLOR.z(), UNWALKABLE_BLEND);
         }
-        return color;
+        return new Vector4f(TRANSPARENT);
     }
 
     private static float localGradient(float @NonNull [] @NonNull [] heights, int x, int y) {
@@ -267,26 +301,6 @@ public final class MinimapPanel extends GUIObject {
         float frac = phase - (float) Math.floor(phase);
         float landDist = Math.min(frac, 1f - frac) * contourInterval;
         return Math.min(coastDist, landDist);
-    }
-
-    /**
-     * True when the segment between two heights crosses the coastline or a land contour.
-     */
-    static boolean crossesContour(float h0, float h1, float seaLevel, float contourInterval) {
-        boolean land0 = h0 > seaLevel;
-        boolean land1 = h1 > seaLevel;
-        if (land0 != land1) {
-            return true;
-        }
-        if (!land0) {
-            return false;
-        }
-        return landContourBand(h0, seaLevel, contourInterval)
-                != landContourBand(h1, seaLevel, contourInterval);
-    }
-
-    static int landContourBand(float height, float seaLevel, float contourInterval) {
-        return (int) Math.floor((height - seaLevel) / contourInterval);
     }
 
     /**
@@ -349,260 +363,86 @@ public final class MinimapPanel extends GUIObject {
     }
 
     /**
-     * Position the minimap in the bottom-left corner.
+     * Render the minimap in screen space. Called from {@code InGameDelegate.render2D()} so it
+     * stays visible when other delegates are pushed on top.
      */
-    public void updatePosition(int screenWidth, int screenHeight) {
-        int x = MARGIN_LEFT;
-        int y = MARGIN_BOTTOM;
-        setPos(x, y);
-    }
-
-    /**
-     * Render the minimap at the specified screen position.
-     * This method is called from SelectionDelegate.render2D() to ensure the minimap
-     * remains visible even when other delegates (like TargetDelegate) are pushed on top.
-     * 
-     * @param renderer The GUI renderer
-     * @param screenWidth Current screen width for positioning
-     * @param screenHeight Current screen height for positioning
-     */
-    public void renderAtPosition(@NonNull GUIRenderer renderer, int screenWidth, int screenHeight) {
-        // Don't render if disabled in settings or map mode is active
+    public void renderAtPosition(@NonNull GUIRenderer renderer) {
         if (!Settings.getSettings().show_minimap || mapModeActive) {
             return;
         }
 
-        // Calculate position (bottom-left)
         updateDimensions();
         int x = MARGIN_LEFT;
         int y = MARGIN_BOTTOM;
 
-        // Save current position, render, then restore if needed
         renderer.flush();
-        
-        // Translate to minimap position and render
+
         if (Settings.getSettings().minimap_expanded) {
-            renderExpandedAt(renderer, x, y);
+            renderExpanded(renderer, x, y);
         } else {
-            renderCollapsedAt(renderer, x, y);
+            renderCollapsed(renderer, x, y);
         }
     }
 
-    private void renderExpandedAt(@NonNull GUIRenderer renderer, int posX, int posY) {
+    private void renderExpanded(@NonNull GUIRenderer renderer, int posX, int posY) {
         int w = MAP_SIZE + 2 * BORDER_WIDTH;
         int h = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
 
-        // Background
         renderer.drawColoredQuad(posX, posY, w, h, BG_COLOR);
 
-        // Border
-        renderer.drawColoredQuad(posX, posY, w, BORDER_WIDTH, BORDER_COLOR);                    // bottom
-        renderer.drawColoredQuad(posX, posY + h - BORDER_WIDTH, w, BORDER_WIDTH, BORDER_COLOR); // top
-        renderer.drawColoredQuad(posX, posY, BORDER_WIDTH, h, BORDER_COLOR);                    // left
-        renderer.drawColoredQuad(posX + w - BORDER_WIDTH, posY, BORDER_WIDTH, h, BORDER_COLOR); // right
+        renderer.drawColoredQuad(posX, posY, w, BORDER_WIDTH, BORDER_COLOR);
+        renderer.drawColoredQuad(posX, posY + h - BORDER_WIDTH, w, BORDER_WIDTH, BORDER_COLOR);
+        renderer.drawColoredQuad(posX, posY, BORDER_WIDTH, h, BORDER_COLOR);
+        renderer.drawColoredQuad(posX + w - BORDER_WIDTH, posY, BORDER_WIDTH, h, BORDER_COLOR);
 
-        // Header bar
         int headerY = posY + h - HEADER_HEIGHT - BORDER_WIDTH;
         renderer.drawColoredQuad(posX + BORDER_WIDTH, headerY, w - 2 * BORDER_WIDTH, HEADER_HEIGHT, HEADER_COLOR);
         drawUnwalkableToggle(renderer, posX, posY, h);
 
-        // Collapse indicator
         float indicatorX = posX + w / 2f - 4;
         float indicatorY = headerY + HEADER_HEIGHT / 2f - 2;
         renderer.drawColoredQuad(indicatorX, indicatorY, 8, 4, BORDER_COLOR);
 
-        // Map area
         float mapX = posX + BORDER_WIDTH;
         float mapY = posY + BORDER_WIDTH;
         float mapW = w - 2 * BORDER_WIDTH;
         float mapH = h - HEADER_HEIGHT - 2 * BORDER_WIDTH;
 
-        // Terrain texture
-        Texture terrain = activeTerrainTexture();
-        if (terrain != null) {
-            renderer.drawTexture(terrain, mapX, mapY, mapW, mapH,
-                    0f, 0f, 1f, 1f, Color.WHITE);
-        }
+        drawTerrainLayers(renderer, mapX, mapY, mapW, mapH);
 
         renderer.flush();
 
-        // Entity dots
-        renderEntitiesAt(renderer, mapX, mapY, mapW, mapH);
-        
-        // Viewport rectangle
-        renderViewportAt(renderer, mapX, mapY, mapW, mapH);
+        renderEntities(renderer, mapX, mapY, mapW, mapH);
+        renderViewport(renderer, mapX, mapY, mapW, mapH);
     }
 
-    private void renderCollapsedAt(@NonNull GUIRenderer renderer, int posX, int posY) {
-        // Simple collapsed indicator
+    private void drawTerrainLayers(
+            @NonNull GUIRenderer renderer,
+            float mapX,
+            float mapY,
+            float mapW,
+            float mapH) {
+        if (terrainBase != null) {
+            renderer.drawTexture(terrainBase, mapX, mapY, mapW, mapH, 0f, 0f, 1f, 1f, Color.WHITE);
+        }
+        for (OverlayLayer layer : overlays) {
+            if (layer.isVisible()) {
+                renderer.drawTexture(layer.texture(), mapX, mapY, mapW, mapH, 0f, 0f, 1f, 1f, Color.WHITE);
+            }
+        }
+    }
+
+    private void renderCollapsed(@NonNull GUIRenderer renderer, int posX, int posY) {
         renderer.drawColoredQuad(posX, posY, COLLAPSED_SIZE, COLLAPSED_SIZE, BG_COLOR);
         renderer.drawColoredQuad(posX, posY, COLLAPSED_SIZE, 2, BORDER_COLOR);
         renderer.drawColoredQuad(posX, posY + COLLAPSED_SIZE - 2, COLLAPSED_SIZE, 2, BORDER_COLOR);
         renderer.drawColoredQuad(posX, posY, 2, COLLAPSED_SIZE, BORDER_COLOR);
         renderer.drawColoredQuad(posX + COLLAPSED_SIZE - 2, posY, 2, COLLAPSED_SIZE, BORDER_COLOR);
 
-        // Expand indicator (plus sign)
         float cx = posX + COLLAPSED_SIZE / 2f;
         float cy = posY + COLLAPSED_SIZE / 2f;
         renderer.drawColoredQuad(cx - 6, cy - 1, 12, 2, BORDER_COLOR);
         renderer.drawColoredQuad(cx - 1, cy - 6, 2, 12, BORDER_COLOR);
-    }
-
-    private void renderEntitiesAt(@NonNull GUIRenderer renderer, float mapX, float mapY, float mapW, float mapH) {
-        var localPlayer = viewer.getLocalPlayer();
-        var entities = localPlayer.getUnits().getSet();
-
-        for (Selectable<?> entity : entities) {
-            if (entity.isDead()) {
-                continue;
-            }
-
-            float worldX = entity.getPositionX();
-            float worldY = entity.getPositionY();
-
-            float normX = worldX / metersPerWorld;
-            float normY = worldY / metersPerWorld;
-
-            float dotX = mapX + normX * mapW;
-            float dotY = mapY + normY * mapH;
-
-            if (entity instanceof Building building) {
-                if (building.isPlaced()) {
-                    float halfSize = BUILDING_DOT_SIZE / 2f;
-                    renderer.drawColoredQuad(dotX - halfSize, dotY - halfSize,
-                            BUILDING_DOT_SIZE, BUILDING_DOT_SIZE, BUILDING_COLOR);
-                }
-            } else if (entity instanceof Unit) {
-                float halfSize = UNIT_DOT_SIZE / 2f;
-                renderer.drawColoredQuad(dotX - halfSize, dotY - halfSize,
-                        UNIT_DOT_SIZE, UNIT_DOT_SIZE, UNIT_COLOR);
-            }
-        }
-    }
-
-    /**
-     * Render a white rectangle showing the current camera viewport on the minimap.
-     */
-    private void renderViewportAt(@NonNull GUIRenderer renderer, float mapX, float mapY, float mapW, float mapH) {
-        CameraState state = viewer.getCamera().getState();
-        float camX = state.getTargetX();
-        float camY = state.getTargetY();
-        float camZ = state.getTargetZ();
-
-        // Estimate visible area - roughly proportional to camera height
-        float viewRadius = camZ * 1.5f;
-
-        // Convert camera position and view size to normalized coordinates
-        float normCamX = camX / metersPerWorld;
-        float normCamY = camY / metersPerWorld;
-        float normRadiusX = viewRadius / metersPerWorld;
-        float normRadiusY = viewRadius / metersPerWorld;
-
-        // Convert to minimap pixel coordinates
-        float rectCenterX = mapX + normCamX * mapW;
-        float rectCenterY = mapY + normCamY * mapH;
-        float rectHalfW = normRadiusX * mapW;
-        float rectHalfH = normRadiusY * mapH;
-
-        // Calculate rectangle bounds
-        float left = rectCenterX - rectHalfW;
-        float right = rectCenterX + rectHalfW;
-        float bottom = rectCenterY - rectHalfH;
-        float top = rectCenterY + rectHalfH;
-
-        // Clamp to map area
-        left = Math.max(left, mapX);
-        right = Math.min(right, mapX + mapW);
-        bottom = Math.max(bottom, mapY);
-        top = Math.min(top, mapY + mapH);
-
-        float width = right - left;
-        float height = top - bottom;
-
-        // Draw rectangle outline (4 lines)
-        // Bottom edge
-        renderer.drawColoredQuad(left, bottom, width, VIEWPORT_LINE_THICKNESS, VIEWPORT_COLOR);
-        // Top edge
-        renderer.drawColoredQuad(left, top - VIEWPORT_LINE_THICKNESS, width, VIEWPORT_LINE_THICKNESS, VIEWPORT_COLOR);
-        // Left edge
-        renderer.drawColoredQuad(left, bottom, VIEWPORT_LINE_THICKNESS, height, VIEWPORT_COLOR);
-        // Right edge
-        renderer.drawColoredQuad(right - VIEWPORT_LINE_THICKNESS, bottom, VIEWPORT_LINE_THICKNESS, height, VIEWPORT_COLOR);
-    }
-
-    @Override
-    protected void renderGeometry(@NonNull GUIRenderer renderer) {
-        // Don't render if disabled in settings or map mode is active
-        if (!Settings.getSettings().show_minimap || mapModeActive) {
-            return;
-        }
-
-        if (Settings.getSettings().minimap_expanded) {
-            renderExpanded(renderer);
-        } else {
-            renderCollapsed(renderer);
-        }
-    }
-
-    private void renderExpanded(@NonNull GUIRenderer renderer) {
-        int w = getWidth();
-        int h = getHeight();
-
-        // Background
-        renderer.drawColoredQuad(0, 0, w, h, BG_COLOR);
-
-        // Border
-        renderer.drawColoredQuad(0, 0, w, BORDER_WIDTH, BORDER_COLOR);                    // bottom
-        renderer.drawColoredQuad(0, h - BORDER_WIDTH, w, BORDER_WIDTH, BORDER_COLOR);     // top
-        renderer.drawColoredQuad(0, 0, BORDER_WIDTH, h, BORDER_COLOR);                    // left
-        renderer.drawColoredQuad(w - BORDER_WIDTH, 0, BORDER_WIDTH, h, BORDER_COLOR);     // right
-
-        // Header bar (clickable area to collapse)
-        int headerY = h - HEADER_HEIGHT - BORDER_WIDTH;
-        renderer.drawColoredQuad(BORDER_WIDTH, headerY, w - 2 * BORDER_WIDTH, HEADER_HEIGHT, HEADER_COLOR);
-        drawUnwalkableToggle(renderer, 0, 0, h);
-
-        // Draw collapse indicator (small triangle or minus)
-        float indicatorX = w / 2f - 4;
-        float indicatorY = headerY + HEADER_HEIGHT / 2f - 2;
-        renderer.drawColoredQuad(indicatorX, indicatorY, 8, 4, BORDER_COLOR);
-
-        // Map area dimensions
-        float mapX = BORDER_WIDTH;
-        float mapY = BORDER_WIDTH;
-        float mapW = w - 2 * BORDER_WIDTH;
-        float mapH = h - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-
-        // Terrain texture
-        Texture terrain = activeTerrainTexture();
-        if (terrain != null) {
-            renderer.drawTexture(terrain, mapX, mapY, mapW, mapH,
-                    0f, 0f, 1f, 1f, Color.WHITE);
-        }
-
-        // Flush to ensure terrain is rendered before entity dots
-        renderer.flush();
-
-        // Draw entity dots on top
-        renderEntities(renderer, mapX, mapY, mapW, mapH);
-        
-        // Viewport rectangle
-        renderViewport(renderer, mapX, mapY, mapW, mapH);
-    }
-
-    private void renderCollapsed(@NonNull GUIRenderer renderer) {
-        // Simple collapsed indicator
-        renderer.drawColoredQuad(0, 0, COLLAPSED_SIZE, COLLAPSED_SIZE, BG_COLOR);
-        renderer.drawColoredQuad(0, 0, COLLAPSED_SIZE, 2, BORDER_COLOR);
-        renderer.drawColoredQuad(0, COLLAPSED_SIZE - 2, COLLAPSED_SIZE, 2, BORDER_COLOR);
-        renderer.drawColoredQuad(0, 0, 2, COLLAPSED_SIZE, BORDER_COLOR);
-        renderer.drawColoredQuad(COLLAPSED_SIZE - 2, 0, 2, COLLAPSED_SIZE, BORDER_COLOR);
-
-        // Small expand indicator (plus sign or arrow)
-        float cx = COLLAPSED_SIZE / 2f;
-        float cy = COLLAPSED_SIZE / 2f;
-        renderer.drawColoredQuad(cx - 6, cy - 1, 12, 2, BORDER_COLOR);  // horizontal
-        renderer.drawColoredQuad(cx - 1, cy - 6, 2, 12, BORDER_COLOR);  // vertical
     }
 
     private void renderEntities(@NonNull GUIRenderer renderer, float mapX, float mapY, float mapW, float mapH) {
@@ -614,7 +454,6 @@ public final class MinimapPanel extends GUIObject {
                 continue;
             }
 
-            // Convert world position to minimap position
             float worldX = entity.getPositionX();
             float worldY = entity.getPositionY();
 
@@ -626,13 +465,11 @@ public final class MinimapPanel extends GUIObject {
 
             if (entity instanceof Building building) {
                 if (building.isPlaced()) {
-                    // Center the dot
                     float halfSize = BUILDING_DOT_SIZE / 2f;
                     renderer.drawColoredQuad(dotX - halfSize, dotY - halfSize,
                             BUILDING_DOT_SIZE, BUILDING_DOT_SIZE, BUILDING_COLOR);
                 }
             } else if (entity instanceof Unit) {
-                // Center the dot
                 float halfSize = UNIT_DOT_SIZE / 2f;
                 renderer.drawColoredQuad(dotX - halfSize, dotY - halfSize,
                         UNIT_DOT_SIZE, UNIT_DOT_SIZE, UNIT_COLOR);
@@ -641,89 +478,31 @@ public final class MinimapPanel extends GUIObject {
     }
 
     /**
-     * Render a white rectangle showing the current camera viewport on the minimap.
-     * Uses local coordinates (relative to this GUIObject).
+     * Render the camera frustum as a quad from the four screen-corner landscape hits.
      */
     private void renderViewport(@NonNull GUIRenderer renderer, float mapX, float mapY, float mapW, float mapH) {
-        CameraState state = viewer.getCamera().getState();
-        float camX = state.getTargetX();
-        float camY = state.getTargetY();
-        float camZ = state.getTargetZ();
+        // ALWAYS DRAW FROM CORNER HITS (SEA / FAR FALLBACK FILLS MISSES)
+        viewer.getPicker().pickViewportCorners(viewer.getCamera().getState(), viewportWorldXY);
 
-        // Estimate visible area - roughly proportional to camera height
-        float viewRadius = camZ * 1.5f;
+        for (int i = 0; i < 4; i++) {
+            float worldX = viewportWorldXY[i * 2];
+            float worldY = viewportWorldXY[i * 2 + 1];
+            viewportMapXY[i * 2] = mapX + clamp01(worldX / metersPerWorld) * mapW;
+            viewportMapXY[i * 2 + 1] = mapY + clamp01(worldY / metersPerWorld) * mapH;
+        }
 
-        // Convert camera position and view size to normalized coordinates
-        float normCamX = camX / metersPerWorld;
-        float normCamY = camY / metersPerWorld;
-        float normRadiusX = viewRadius / metersPerWorld;
-        float normRadiusY = viewRadius / metersPerWorld;
-
-        // Convert to minimap pixel coordinates
-        float rectCenterX = mapX + normCamX * mapW;
-        float rectCenterY = mapY + normCamY * mapH;
-        float rectHalfW = normRadiusX * mapW;
-        float rectHalfH = normRadiusY * mapH;
-
-        // Calculate rectangle bounds
-        float left = rectCenterX - rectHalfW;
-        float right = rectCenterX + rectHalfW;
-        float bottom = rectCenterY - rectHalfH;
-        float top = rectCenterY + rectHalfH;
-
-        // Clamp to map area
-        left = Math.max(left, mapX);
-        right = Math.min(right, mapX + mapW);
-        bottom = Math.max(bottom, mapY);
-        top = Math.min(top, mapY + mapH);
-
-        float width = right - left;
-        float height = top - bottom;
-
-        // Draw rectangle outline (4 lines)
-        // Bottom edge
-        renderer.drawColoredQuad(left, bottom, width, VIEWPORT_LINE_THICKNESS, VIEWPORT_COLOR);
-        // Top edge
-        renderer.drawColoredQuad(left, top - VIEWPORT_LINE_THICKNESS, width, VIEWPORT_LINE_THICKNESS, VIEWPORT_COLOR);
-        // Left edge
-        renderer.drawColoredQuad(left, bottom, VIEWPORT_LINE_THICKNESS, height, VIEWPORT_COLOR);
-        // Right edge
-        renderer.drawColoredQuad(right - VIEWPORT_LINE_THICKNESS, bottom, VIEWPORT_LINE_THICKNESS, height, VIEWPORT_COLOR);
+        for (int i = 0; i < 4; i++) {
+            int next = (i + 1) % 4;
+            renderer.drawColoredLine(
+                    viewportMapXY[i * 2], viewportMapXY[i * 2 + 1],
+                    viewportMapXY[next * 2], viewportMapXY[next * 2 + 1],
+                    VIEWPORT_LINE_THICKNESS, VIEWPORT_COLOR);
+        }
     }
 
     @Override
-    protected void mousePressed(@NonNull MouseButton button, int x, int y) {
-        if (button == MouseButton.LEFT) {
-            if (Settings.getSettings().minimap_expanded) {
-                if (hitUnwalkableToggle(x, y)) {
-                    toggleUnwalkableTint();
-                    return;
-                }
-
-                int headerY = getHeight() - HEADER_HEIGHT - BORDER_WIDTH;
-
-                if (y >= headerY) {
-                    // Header click - toggle expand/collapse
-                    toggleExpanded();
-                } else if (y >= BORDER_WIDTH && x >= BORDER_WIDTH &&
-                           x < getWidth() - BORDER_WIDTH && y < headerY) {
-                    // Map area click - move camera to clicked location
-                    float mapW = getWidth() - 2 * BORDER_WIDTH;
-                    float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-
-                    float normX = (x - BORDER_WIDTH) / mapW;
-                    float normY = (y - BORDER_WIDTH) / mapH;
-
-                    float worldX = normX * metersPerWorld;
-                    float worldY = normY * metersPerWorld;
-
-                    moveCameraTo(worldX, worldY);
-                }
-            } else {
-                // In collapsed mode, the whole thing is clickable to expand
-                toggleExpanded();
-            }
-        }
+    protected void renderGeometry(@NonNull GUIRenderer renderer) {
+        // NOT IN THE GUI TREE — DRAWING HAPPENS VIA renderAtPosition FROM InGameDelegate
     }
 
     private void drawUnwalkableToggle(
@@ -769,14 +548,8 @@ public final class MinimapPanel extends GUIObject {
     private void toggleExpanded() {
         Settings.getSettings().minimap_expanded = !Settings.getSettings().minimap_expanded;
         updateDimensions();
-
-        // Request parent to reposition us
-        GUIRoot root = getParentGUIRoot();
-        if (root != null) {
-            updatePosition(root.getWidth(), root.getHeight());
-        }
     }
-    
+
     /**
      * Move the camera to the specified world coordinates using a JumpDelegate.
      */
@@ -788,52 +561,32 @@ public final class MinimapPanel extends GUIObject {
 
     /**
      * Check if a screen coordinate is within the minimap bounds.
-     * Used by InGameDelegate to determine if a click should be forwarded to the minimap.
-     * 
-     * @param screenX Screen X coordinate
-     * @param screenY Screen Y coordinate  
-     * @param screenWidth Current screen width
-     * @param screenHeight Current screen height
-     * @return true if the point is within the minimap area
      */
-    public boolean containsScreenPoint(int screenX, int screenY, int screenWidth, int screenHeight) {
+    public boolean containsScreenPoint(int screenX, int screenY) {
         if (!Settings.getSettings().show_minimap || mapModeActive) {
             return false;
         }
-        
+
         updateDimensions();
-        int minimapX = MARGIN_LEFT;
-        int minimapY = MARGIN_BOTTOM;
-        int minimapW = getWidth();
-        int minimapH = getHeight();
-        
-        return screenX >= minimapX && screenX < minimapX + minimapW &&
-               screenY >= minimapY && screenY < minimapY + minimapH;
+        return screenX >= MARGIN_LEFT && screenX < MARGIN_LEFT + getWidth()
+                && screenY >= MARGIN_BOTTOM && screenY < MARGIN_BOTTOM + getHeight();
     }
 
     /**
-     * Handle a mouse click at screen coordinates. Called by InGameDelegate when
-     * the click is within the minimap bounds.
-     * 
-     * @param screenX Screen X coordinate
-     * @param screenY Screen Y coordinate
-     * @param screenWidth Current screen width
-     * @param screenHeight Current screen height
+     * Handle a mouse click at screen coordinates. Called via {@code InGameDelegate.tryHandleMinimapClick}.
+     *
      * @return true if the click was handled
      */
-    public boolean handleScreenClick(int screenX, int screenY, int screenWidth, int screenHeight) {
+    public boolean handleScreenClick(int screenX, int screenY) {
         if (!Settings.getSettings().show_minimap || mapModeActive) {
             return false;
         }
-        
+
         updateDimensions();
-        int minimapX = MARGIN_LEFT;
-        int minimapY = MARGIN_BOTTOM;
-        
-        // Convert screen coordinates to local minimap coordinates
-        int localX = screenX - minimapX;
-        int localY = screenY - minimapY;
-        
+        return handleLocalClick(screenX - MARGIN_LEFT, screenY - MARGIN_BOTTOM);
+    }
+
+    private boolean handleLocalClick(int localX, int localY) {
         if (Settings.getSettings().minimap_expanded) {
             if (hitUnwalkableToggle(localX, localY)) {
                 toggleUnwalkableTint();
@@ -843,58 +596,46 @@ public final class MinimapPanel extends GUIObject {
             int headerY = getHeight() - HEADER_HEIGHT - BORDER_WIDTH;
 
             if (localY >= headerY) {
-                // Header click - toggle expand/collapse
                 toggleExpanded();
                 return true;
-            } else if (localY >= BORDER_WIDTH && localX >= BORDER_WIDTH &&
-                       localX < getWidth() - BORDER_WIDTH && localY < headerY) {
-                // Map area click - move camera to clicked location
+            } else if (localY >= BORDER_WIDTH && localX >= BORDER_WIDTH
+                    && localX < getWidth() - BORDER_WIDTH && localY < headerY) {
                 float mapW = getWidth() - 2 * BORDER_WIDTH;
                 float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
 
                 float normX = (localX - BORDER_WIDTH) / mapW;
                 float normY = (localY - BORDER_WIDTH) / mapH;
 
-                float worldX = normX * metersPerWorld;
-                float worldY = normY * metersPerWorld;
-
-                moveCameraTo(worldX, worldY);
+                moveCameraTo(normX * metersPerWorld, normY * metersPerWorld);
                 return true;
             }
         } else {
-            // In collapsed mode, the whole thing is clickable to expand
             toggleExpanded();
             return true;
         }
-        
+
         return false;
     }
 
     @Override
-    protected void displayChangedNotify(int width, int height) {
-        // Parent will handle repositioning via SelectionDelegate
-    }
-
-    @Override
     protected void doRemove() {
-        // Do NOT destroy the texture here - the minimap may be temporarily removed
-        // from the tree when delegates are pushed/popped, and we need the texture
-        // to persist. Use dispose() for final cleanup.
+        // DO NOT DESTROY TEXTURES HERE — PANEL MAY BE REMOVED TEMPORARILY DURING DELEGATE CHANGES.
+        // USE dispose() FOR FINAL CLEANUP.
         super.doRemove();
     }
 
     /**
-     * Clean up GPU resources. Call this only when the minimap is being permanently
-     * destroyed (e.g., game over, returning to menu), not during temporary delegate changes.
+     * Clean up GPU resources. Call only when the minimap is permanently destroyed
+     * (e.g. game over / return to menu), not during temporary delegate changes.
      */
     public void dispose() {
-        if (terrainPlain != null) {
-            terrainPlain.close();
-            terrainPlain = null;
+        if (terrainBase != null) {
+            terrainBase.close();
+            terrainBase = null;
         }
-        if (terrainUnwalkable != null) {
-            terrainUnwalkable.close();
-            terrainUnwalkable = null;
+        for (OverlayLayer layer : overlays) {
+            layer.close();
         }
+        overlays.clear();
     }
 }

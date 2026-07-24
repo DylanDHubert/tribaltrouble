@@ -47,17 +47,11 @@ public class TargetDelegate extends ControllableCameraDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        if (tryHandleMinimapClick(button, x, y)) {
+            return;
+        }
+
         if (button == MouseButton.LEFT) {
-            // Check if clicking on minimap first
-            int screenWidth = getGUIRoot().getWidth();
-            int screenHeight = getGUIRoot().getHeight();
-            var minimap = getViewer().getMinimapPanel();
-            if (minimap.containsScreenPoint(x, y, screenWidth, screenHeight)) {
-                if (minimap.handleScreenClick(x, y, screenWidth, screenHeight)) {
-                    return; // Click was handled by minimap
-                }
-            }
-            
             getViewer().getPicker().pickTarget(getViewer().getSelection().getCurrentSelection(),
                     getViewer().getGUIRoot().getDelegate().getCamera().getState(),
                     getViewer().getPeerHub().getPlayerInterface(), x, y, action);

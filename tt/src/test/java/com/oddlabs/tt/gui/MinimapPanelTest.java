@@ -192,39 +192,36 @@ class MinimapPanelTest {
         }
 
         @Test
-        @DisplayName("Unwalkable land gets a slight red tint")
-        void unwalkableLandTint() {
+        @DisplayName("Unwalkable land gets a red overlay pixel with blend alpha")
+        void unwalkableLandOverlay() {
             float landHeight = SEA + 8f;
-            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true, true);
-            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false, true);
+            Vector4f walkable = MinimapPanel.unwalkableOverlayPixel(landHeight, SEA, true);
+            Vector4f blocked = MinimapPanel.unwalkableOverlayPixel(landHeight, SEA, false);
 
-            assertNotEquals(walkable.x(), blocked.x(), 0.001f);
-            assertTrue(blocked.x() > walkable.x(),
-                    "Blocked land should shift toward red");
+            assertEquals(0f, walkable.w(), 0.0001f, "Walkable land should be transparent");
+            assertTrue(blocked.w() > 0f, "Blocked land should have overlay alpha");
+            assertTrue(blocked.x() > blocked.y() && blocked.x() > blocked.z(),
+                    "Blocked overlay should be red-dominant");
         }
 
         @Test
-        @DisplayName("Unwalkable tint can be disabled")
-        void unwalkableTintToggleOff() {
+        @DisplayName("Walkable land overlay is fully transparent")
+        void walkableOverlayTransparent() {
             float landHeight = SEA + 8f;
-            Vector4f walkable = MinimapPanel.terrainColor(landHeight, SEA, MAX, true, false);
-            Vector4f blocked = MinimapPanel.terrainColor(landHeight, SEA, MAX, false, false);
-
-            assertEquals(walkable.x(), blocked.x(), 0.0001f);
-            assertEquals(walkable.y(), blocked.y(), 0.0001f);
-            assertEquals(walkable.z(), blocked.z(), 0.0001f);
+            Vector4f walkable = MinimapPanel.unwalkableOverlayPixel(landHeight, SEA, true);
+            assertEquals(0f, walkable.w(), 0.0001f);
+            assertEquals(0f, walkable.x(), 0.0001f);
         }
 
         @Test
-        @DisplayName("Unwalkable water stays on the blue ramp")
+        @DisplayName("Unwalkable water stays transparent on the overlay")
         void unwalkableWaterUntinted() {
             float waterHeight = SEA * 0.5f;
-            Vector4f walkableFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, true, true);
-            Vector4f blockedFlag = MinimapPanel.terrainColor(waterHeight, SEA, MAX, false, true);
+            Vector4f walkableFlag = MinimapPanel.unwalkableOverlayPixel(waterHeight, SEA, true);
+            Vector4f blockedFlag = MinimapPanel.unwalkableOverlayPixel(waterHeight, SEA, false);
 
-            assertEquals(walkableFlag.x(), blockedFlag.x(), 0.0001f);
-            assertEquals(walkableFlag.y(), blockedFlag.y(), 0.0001f);
-            assertEquals(walkableFlag.z(), blockedFlag.z(), 0.0001f);
+            assertEquals(0f, walkableFlag.w(), 0.0001f);
+            assertEquals(0f, blockedFlag.w(), 0.0001f);
         }
     }
 
@@ -237,43 +234,10 @@ class MinimapPanelTest {
         private static final float INTERVAL = MinimapPanel.landContourInterval(SEA, MAX);
 
         @Test
-        @DisplayName("Coastline crossing detects land/water edge")
-        void coastlineCrossing() {
-            assertTrue(MinimapPanel.crossesContour(SEA - 0.5f, SEA + 0.5f, SEA, INTERVAL));
-            assertTrue(MinimapPanel.crossesContour(SEA + 0.5f, SEA - 0.5f, SEA, INTERVAL));
-        }
-
-        @Test
-        @DisplayName("Same side of coastline is not a contour")
-        void sameSideNoContour() {
-            assertFalse(MinimapPanel.crossesContour(SEA - 1f, SEA - 0.2f, SEA, INTERVAL));
-            assertFalse(MinimapPanel.crossesContour(SEA + 1f, SEA + 1.1f, SEA, INTERVAL));
-        }
-
-        @Test
-        @DisplayName("Land contour band changes across interval")
-        void landBandCrossing() {
-            float low = SEA + INTERVAL * 0.5f;
-            float high = SEA + INTERVAL * 1.5f;
-            assertTrue(MinimapPanel.crossesContour(low, high, SEA, INTERVAL));
-            assertNotEquals(
-                    MinimapPanel.landContourBand(low, SEA, INTERVAL),
-                    MinimapPanel.landContourBand(high, SEA, INTERVAL));
-        }
-
-        @Test
-        @DisplayName("Water-only pairs never form land isolines")
-        void waterPairsSkipLandIsolines() {
-            assertFalse(MinimapPanel.crossesContour(0f, SEA * 0.5f, SEA, INTERVAL));
-        }
-
-        @Test
         @DisplayName("Contour interval divides land relief into expected bands")
         void contourIntervalMatchesCount() {
             float interval = MinimapPanel.landContourInterval(SEA, MAX);
             assertEquals((MAX - SEA) / 12f, interval, 0.0001f);
-            assertEquals(0, MinimapPanel.landContourBand(SEA + 0.01f, SEA, interval));
-            assertEquals(11, MinimapPanel.landContourBand(MAX - 0.01f, SEA, interval));
         }
 
         @Test
@@ -538,75 +502,58 @@ class MinimapPanelTest {
     }
 
     @Nested
-    @DisplayName("Viewport Rectangle Calculations")
+    @DisplayName("Viewport Quad Mapping")
     class ViewportRectTests {
 
         @Test
-        @DisplayName("Camera position converts to minimap coordinates correctly")
-        void cameraPositionToMinimap() {
+        @DisplayName("World corner maps into minimap pixel space")
+        void worldCornerToMinimap() {
             int metersPerWorld = 1024;
-            float mapX = 2f;  // BORDER_WIDTH
-            float mapY = 2f;
-            float mapW = 150f;  // MAP_SIZE
-            float mapH = 150f;
-            
-            // Camera at world center
-            float camX = 512f;
-            float camY = 512f;
-            
-            float normCamX = camX / metersPerWorld;
-            float normCamY = camY / metersPerWorld;
-            
-            float rectCenterX = mapX + normCamX * mapW;
-            float rectCenterY = mapY + normCamY * mapH;
-            
-            assertEquals(77f, rectCenterX, 1f, "Viewport center X");
-            assertEquals(77f, rectCenterY, 1f, "Viewport center Y");
-        }
-
-        @Test
-        @DisplayName("View radius scales with camera height")
-        void viewRadiusScalesWithHeight() {
-            float camZ1 = 50f;
-            float camZ2 = 100f;
-            
-            float viewRadius1 = camZ1 * 1.5f;
-            float viewRadius2 = camZ2 * 1.5f;
-            
-            assertEquals(75f, viewRadius1);
-            assertEquals(150f, viewRadius2);
-            assertEquals(viewRadius1 * 2, viewRadius2, "Radius should double with camera height");
-        }
-
-        @Test
-        @DisplayName("Viewport rectangle is clamped to map area")
-        void viewportClampsToMapArea() {
             float mapX = 2f;
             float mapY = 2f;
             float mapW = 150f;
             float mapH = 150f;
-            
-            // Viewport that would extend beyond map area
-            float rectCenterX = 5f;  // Near left edge
-            float rectCenterY = 5f;  // Near bottom edge
-            float rectHalfW = 50f;   // Would go past left edge
-            float rectHalfH = 50f;
-            
-            float left = rectCenterX - rectHalfW;
-            float right = rectCenterX + rectHalfW;
-            float bottom = rectCenterY - rectHalfH;
-            float top = rectCenterY + rectHalfH;
-            
-            // Clamp
-            left = Math.max(left, mapX);
-            right = Math.min(right, mapX + mapW);
-            bottom = Math.max(bottom, mapY);
-            top = Math.min(top, mapY + mapH);
-            
-            assertEquals(mapX, left, "Left should be clamped to map left edge");
-            assertEquals(mapY, bottom, "Bottom should be clamped to map bottom edge");
-            assertTrue(right <= mapX + mapW, "Right should not exceed map right edge");
-            assertTrue(top <= mapY + mapH, "Top should not exceed map top edge");
+
+            float worldX = 512f;
+            float worldY = 256f;
+            float mx = mapX + clamp01(worldX / metersPerWorld) * mapW;
+            float my = mapY + clamp01(worldY / metersPerWorld) * mapH;
+
+            assertEquals(77f, mx, 0.01f);
+            assertEquals(39.5f, my, 0.01f);
+        }
+
+        @Test
+        @DisplayName("World coords outside the map clamp to minimap edges")
+        void worldOutsideClampsToMap() {
+            int metersPerWorld = 1024;
+            float mapX = 2f;
+            float mapY = 2f;
+            float mapW = 150f;
+            float mapH = 150f;
+
+            float mx = mapX + clamp01(-100f / metersPerWorld) * mapW;
+            float my = mapY + clamp01(5000f / metersPerWorld) * mapH;
+
+            assertEquals(mapX, mx, 0.01f);
+            assertEquals(mapY + mapH, my, 0.01f);
+        }
+
+        @Test
+        @DisplayName("Quad edges connect consecutive corners")
+        void quadEdgeOrder() {
+            // BOTTOM-LEFT, BOTTOM-RIGHT, TOP-RIGHT, TOP-LEFT
+            float[] mapXY = {10, 10, 40, 10, 35, 50, 5, 45};
+            int[] next = {1, 2, 3, 0};
+            for (int i = 0; i < 4; i++) {
+                assertEquals((i + 1) % 4, next[i]);
+                assertTrue(Math.abs(mapXY[i * 2] - mapXY[next[i] * 2]) + Math.abs(
+                        mapXY[i * 2 + 1] - mapXY[next[i] * 2 + 1]) > 0f);
+            }
+        }
+
+        private static float clamp01(float v) {
+            return Math.max(0f, Math.min(1f, v));
         }
     }
 

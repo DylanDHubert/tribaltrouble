@@ -147,22 +147,23 @@ public abstract class InGameDelegate extends CameraDelegate<Camera> {
     }
 
     /**
+     * Forward a click to the minimap when it hits the panel.
+     * Subclasses that override {@link #mousePressed} should call this first and return if true.
+     */
+    protected final boolean tryHandleMinimapClick(@NonNull MouseButton button, int x, int y) {
+        if (button != MouseButton.LEFT) {
+            return false;
+        }
+        var minimap = viewer.getMinimapPanel();
+        return minimap.containsScreenPoint(x, y) && minimap.handleScreenClick(x, y);
+    }
+
+    /**
      * Handle mouse clicks. Forwards clicks to the minimap if within its bounds.
      */
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
-        if (button == MouseButton.LEFT) {
-            // Check if the click is on the minimap
-            int screenWidth = getGUIRoot().getWidth();
-            int screenHeight = getGUIRoot().getHeight();
-            
-            if (viewer.getMinimapPanel().containsScreenPoint(x, y, screenWidth, screenHeight)) {
-                if (viewer.getMinimapPanel().handleScreenClick(x, y, screenWidth, screenHeight)) {
-                    return; // Click was handled by minimap
-                }
-            }
-        }
-        // Let subclass handle the click
+        tryHandleMinimapClick(button, x, y);
     }
 
     /**
@@ -171,8 +172,7 @@ public abstract class InGameDelegate extends CameraDelegate<Camera> {
      */
     @Override
     public void render2D(@NonNull GUIRenderer renderer) {
-        // Render the minimap - this ensures it stays visible even when delegates like
-        // TargetDelegate are pushed on top of SelectionDelegate
-        viewer.getMinimapPanel().renderAtPosition(renderer, getGUIRoot().getWidth(), getGUIRoot().getHeight());
+        // KEEP MINIMAP VISIBLE WHEN DELEGATES LIKE TargetDelegate ARE PUSHED ON TOP
+        viewer.getMinimapPanel().renderAtPosition(renderer);
     }
 }

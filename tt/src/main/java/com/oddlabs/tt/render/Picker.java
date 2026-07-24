@@ -544,6 +544,67 @@ public final class Picker implements Updatable<TimerAnimation> {
         return true;
     }
 
+    /**
+     * Project the four screen corners through the camera onto the landscape.
+     * Corner order (GUI space): bottom-left, bottom-right, top-right, top-left.
+     * Writes world XY pairs into {@code outWorldXY} (length 8). Rays that miss terrain
+     * fall back to a sea-level plane intersection (same as map-mode rotate).
+     *
+     * @return true if all four corners produced a hit
+     */
+    public boolean pickViewportCorners(@NonNull CameraState camera, float @NonNull [] outWorldXY) {
+        if (outWorldXY.length < 8) {
+            throw new IllegalArgumentException("outWorldXY must hold 8 floats (4 XY pairs)");
+        }
+
+        float scale = getScale();
+        int width = Math.max(1, Math.round(gui_root.getWidth() * scale));
+        int height = Math.max(1, Math.round(gui_root.getHeight() * scale));
+        int maxX = width - 1;
+        int maxY = height - 1;
+
+        setupPicking(camera, width * 0.5f, height * 0.5f, width, height);
+        pickLandscape();
+        List<LandscapeLeaf> patches = new ArrayList<>(patch_pick_set);
+
+        int[] cornerX = {0, maxX, maxX, 0};
+        int[] cornerY = {0, 0, maxY, maxY};
+        boolean allHit = true;
+        for (int i = 0; i < 4; i++) {
+            patch_pick_set.clear();
+            patch_pick_set.addAll(patches);
+            calcPosAndDir(cornerX[i], cornerY[i]);
+            if (!doNearestLandscape(hit_result_array[0], hit_result_array[1], hit_result_array[2],
+                    dir_vector[0], dir_vector[1], dir_vector[2])) {
+                if (!intersectSeaPlane()) {
+                    // HORIZONTAL / MISS — PUSH FAR ALONG THE RAY IN XY
+                    patch_hit_x = hit_result_array[0] + dir_vector[0] * 2000f;
+                    patch_hit_y = hit_result_array[1] + dir_vector[1] * 2000f;
+                    allHit = false;
+                }
+            }
+            outWorldXY[i * 2] = patch_hit_x;
+            outWorldXY[i * 2 + 1] = patch_hit_y;
+        }
+        return allHit;
+    }
+
+    /**
+     * Sea-level plane fallback when a screen ray misses the heightfield (sky / horizon).
+     */
+    private boolean intersectSeaPlane() {
+        float sea = local_player.getWorld().getHeightMap().getSeaLevelMeters();
+        float dz = dir_vector[2];
+        if (Math.abs(dz) < 1e-6f) {
+            return false;
+        }
+        float factor = (tmp_camera.getCurrentZ() - sea) / dz;
+        patch_hit_x = tmp_camera.getCurrentX() - factor * dir_vector[0];
+        patch_hit_y = tmp_camera.getCurrentY() - factor * dir_vector[1];
+        patch_hit_z = sea;
+        return true;
+    }
+
     private void setupPicking(@NonNull CameraState camera, float x_center, float y_center, int width, int height) {
         proj.identity();
         viewport.clear();

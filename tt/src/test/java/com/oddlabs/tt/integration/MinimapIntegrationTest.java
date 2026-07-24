@@ -126,9 +126,9 @@ class MinimapIntegrationTest {
         @DisplayName("MinimapPanel has renderAtPosition method for external rendering")
         void minimapPanelHasRenderAtPosition() throws NoSuchMethodException {
             Method renderAtPosition = MinimapPanel.class.getDeclaredMethod(
-                "renderAtPosition", GUIRenderer.class, int.class, int.class);
-            assertNotNull(renderAtPosition, 
-                "MinimapPanel should have renderAtPosition(GUIRenderer, int, int) for external rendering");
+                "renderAtPosition", GUIRenderer.class);
+            assertNotNull(renderAtPosition,
+                "MinimapPanel should have renderAtPosition(GUIRenderer) for external rendering");
         }
 
         @Test
@@ -180,7 +180,7 @@ class MinimapIntegrationTest {
             
             // 3. MinimapPanel can render at a position
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "renderAtPosition", GUIRenderer.class, int.class, int.class),
+                "renderAtPosition", GUIRenderer.class),
                 "MinimapPanel needs renderAtPosition() for external rendering");
         }
 
@@ -208,9 +208,9 @@ class MinimapIntegrationTest {
         @DisplayName("MinimapPanel has containsScreenPoint method")
         void minimapPanelHasContainsScreenPoint() throws NoSuchMethodException {
             Method method = MinimapPanel.class.getDeclaredMethod(
-                "containsScreenPoint", int.class, int.class, int.class, int.class);
+                "containsScreenPoint", int.class, int.class);
             assertNotNull(method, "MinimapPanel should have containsScreenPoint method");
-            assertEquals(boolean.class, method.getReturnType(), 
+            assertEquals(boolean.class, method.getReturnType(),
                 "containsScreenPoint should return boolean");
         }
 
@@ -218,18 +218,19 @@ class MinimapIntegrationTest {
         @DisplayName("MinimapPanel has handleScreenClick method")
         void minimapPanelHasHandleScreenClick() throws NoSuchMethodException {
             Method method = MinimapPanel.class.getDeclaredMethod(
-                "handleScreenClick", int.class, int.class, int.class, int.class);
+                "handleScreenClick", int.class, int.class);
             assertNotNull(method, "MinimapPanel should have handleScreenClick method");
             assertEquals(boolean.class, method.getReturnType(),
                 "handleScreenClick should return boolean");
         }
 
         @Test
-        @DisplayName("InGameDelegate has mousePressed method")
-        void inGameDelegateHasMousePressed() throws NoSuchMethodException {
+        @DisplayName("InGameDelegate has tryHandleMinimapClick helper")
+        void inGameDelegateHasTryHandleMinimapClick() throws NoSuchMethodException {
             Method method = InGameDelegate.class.getDeclaredMethod(
-                "mousePressed", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
-            assertNotNull(method, "InGameDelegate should have mousePressed method");
+                "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
+            assertNotNull(method, "InGameDelegate should expose tryHandleMinimapClick");
+            assertEquals(boolean.class, method.getReturnType());
         }
 
         @Test
@@ -253,19 +254,19 @@ class MinimapIntegrationTest {
         }
 
         @Test
-        @DisplayName("Click handling path: Delegate -> MinimapPanel.containsScreenPoint -> handleScreenClick")
+        @DisplayName("Click handling path: tryHandleMinimapClick -> containsScreenPoint -> handleScreenClick")
         void clickHandlingPathExists() {
-            // Verify the architectural path for click handling
-            
-            // 1. Delegates can check if click is on minimap
+            assertDoesNotThrow(() -> InGameDelegate.class.getDeclaredMethod(
+                "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class),
+                "InGameDelegate needs tryHandleMinimapClick()");
+
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "containsScreenPoint", int.class, int.class, int.class, int.class),
-                "MinimapPanel needs containsScreenPoint() to check click location");
-            
-            // 2. Delegates can forward click to minimap
+                "containsScreenPoint", int.class, int.class),
+                "MinimapPanel needs containsScreenPoint()");
+
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "handleScreenClick", int.class, int.class, int.class, int.class),
-                "MinimapPanel needs handleScreenClick() to handle forwarded clicks");
+                "handleScreenClick", int.class, int.class),
+                "MinimapPanel needs handleScreenClick()");
         }
     }
 
@@ -274,23 +275,8 @@ class MinimapIntegrationTest {
     class ViewportRectangleTests {
 
         @Test
-        @DisplayName("MinimapPanel has private renderViewportAt method")
-        void minimapPanelHasRenderViewportAt() {
-            // Check for the private method by looking at declared methods
-            boolean found = false;
-            for (Method m : MinimapPanel.class.getDeclaredMethods()) {
-                if (m.getName().equals("renderViewportAt")) {
-                    found = true;
-                    break;
-                }
-            }
-            assertTrue(found, "MinimapPanel should have renderViewportAt method for viewport rectangle");
-        }
-
-        @Test
         @DisplayName("MinimapPanel has private renderViewport method")
         void minimapPanelHasRenderViewport() {
-            // Check for the private method by looking at declared methods
             boolean found = false;
             for (Method m : MinimapPanel.class.getDeclaredMethods()) {
                 if (m.getName().equals("renderViewport")) {
@@ -299,6 +285,17 @@ class MinimapIntegrationTest {
                 }
             }
             assertTrue(found, "MinimapPanel should have renderViewport method for viewport rectangle");
+        }
+
+        @Test
+        @DisplayName("Picker has pickViewportCorners for frustum quad")
+        void pickerHasPickViewportCorners() throws NoSuchMethodException {
+            Method method = com.oddlabs.tt.render.Picker.class.getDeclaredMethod(
+                    "pickViewportCorners",
+                    com.oddlabs.tt.camera.CameraState.class,
+                    float[].class);
+            assertNotNull(method);
+            assertEquals(boolean.class, method.getReturnType());
         }
     }
 }
