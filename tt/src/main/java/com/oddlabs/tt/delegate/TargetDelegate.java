@@ -47,6 +47,10 @@ public class TargetDelegate extends ControllableCameraDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        if (tryHandleMinimapClick(button, x, y)) {
+            return;
+        }
+
         if (button == MouseButton.LEFT) {
             getViewer().getPicker().pickTarget(getViewer().getSelection().getCurrentSelection(),
                     getViewer().getGUIRoot().getDelegate().getCamera().getState(),

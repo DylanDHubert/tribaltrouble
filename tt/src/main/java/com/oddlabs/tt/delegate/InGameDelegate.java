@@ -3,6 +3,7 @@ package com.oddlabs.tt.delegate;
 import com.oddlabs.tt.camera.Camera;
 import com.oddlabs.tt.camera.StaticCamera;
 import com.oddlabs.tt.global.Settings;
+import com.oddlabs.tt.gui.MouseButton;
 import com.oddlabs.tt.input.GameAction;
 import com.oddlabs.tt.input.InputEvent;
 import com.oddlabs.tt.input.InputPhase;
@@ -10,6 +11,7 @@ import com.oddlabs.tt.model.Abilities;
 import com.oddlabs.tt.model.Building;
 import com.oddlabs.tt.model.Race;
 import com.oddlabs.tt.model.Unit;
+import com.oddlabs.tt.render.GUIRenderer;
 import com.oddlabs.tt.render.LandscapeLocation;
 import com.oddlabs.tt.viewer.Cheat;
 import com.oddlabs.tt.viewer.WorldViewer;
@@ -142,5 +144,35 @@ public abstract class InGameDelegate extends CameraDelegate<Camera> {
 
     public final @NonNull WorldViewer getViewer() {
         return viewer;
+    }
+
+    /**
+     * Forward a click to the minimap when it hits the panel.
+     * Subclasses that override {@link #mousePressed} should call this first and return if true.
+     */
+    protected final boolean tryHandleMinimapClick(@NonNull MouseButton button, int x, int y) {
+        if (button != MouseButton.LEFT) {
+            return false;
+        }
+        var minimap = viewer.getMinimapPanel();
+        return minimap.containsScreenPoint(x, y) && minimap.handleScreenClick(x, y);
+    }
+
+    /**
+     * Handle mouse clicks. Forwards clicks to the minimap if within its bounds.
+     */
+    @Override
+    public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        tryHandleMinimapClick(button, x, y);
+    }
+
+    /**
+     * Render 2D overlays. Renders the minimap for all in-game delegates.
+     * Subclasses should call super.render2D() to ensure the minimap is rendered.
+     */
+    @Override
+    public void render2D(@NonNull GUIRenderer renderer) {
+        // KEEP MINIMAP VISIBLE WHEN DELEGATES LIKE TargetDelegate ARE PUSHED ON TOP
+        viewer.getMinimapPanel().renderAtPosition(renderer);
     }
 }

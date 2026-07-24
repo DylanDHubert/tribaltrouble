@@ -98,6 +98,9 @@ public final class PlacingDelegate extends ControllableCameraDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        if (tryHandleMinimapClick(button, x, y)) {
+            return;
+        }
         switch (button) {
             case LEFT -> placeObject();
             case RIGHT -> pop();

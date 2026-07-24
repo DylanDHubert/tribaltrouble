@@ -129,6 +129,29 @@ public final class GUIRenderer {
         putQuad(x, y, w, h, -1, -1, -1, -1, -1f, Color.abgri(color));
     }
 
+    /**
+     * Draw a thick line segment as a colored quad (supports diagonal edges).
+     */
+    public void drawColoredLine(float x1, float y1, float x2, float y2, float thickness, @NonNull Vector4fc color) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-4f) {
+            return;
+        }
+        if (quadCount >= MAX_QUADS) {
+            flush();
+        }
+        float nx = -dy / len * thickness * 0.5f;
+        float ny = dx / len * thickness * 0.5f;
+        int packed = Color.abgri(color);
+        putVertex(x1 + nx, y1 + ny, -1f, -1f, -1f, packed);
+        putVertex(x1 - nx, y1 - ny, -1f, -1f, -1f, packed);
+        putVertex(x2 - nx, y2 - ny, -1f, -1f, -1f, packed);
+        putVertex(x2 + nx, y2 + ny, -1f, -1f, -1f, packed);
+        quadCount++;
+    }
+
     public void drawModeIcon(@NonNull ModeIconQuads iconQuad, ModeIconQuads.@NonNull Mode skinMode, float x, float y) {
         drawIcon(iconQuad.quad(skinMode), x, y);
     }
@@ -176,39 +199,25 @@ public final class GUIRenderer {
 
     private void putQuad(float x, float y, float w, float h, float u1, float v1, float u2, float v2, float texIndex,
             int color) {
-        Matrix4f mat = matrixStack.current();
-
-        // Transform vertices on CPU
         float x1 = x;
         float y1 = y;
         float x2 = x + w;
         float y2 = y + h;
 
-        // P1 (x1, y1)
-        vertexBuffer.putFloat(mat.m00() * x1 + mat.m10() * y1 + mat.m30()).putFloat(
-                mat.m01() * x1 + mat.m11() * y1 + mat.m31()).putFloat(
-                        mat.m02() * x1 + mat.m12() * y1 + mat.m32()).putInt(color).putFloat(u1).putFloat(v1).putFloat(
-                                texIndex);
-
-        // P2 (x2, y1)
-        vertexBuffer.putFloat(mat.m00() * x2 + mat.m10() * y1 + mat.m30()).putFloat(
-                mat.m01() * x2 + mat.m11() * y1 + mat.m31()).putFloat(
-                        mat.m02() * x2 + mat.m12() * y1 + mat.m32()).putInt(color).putFloat(u2).putFloat(v1).putFloat(
-                                texIndex);
-
-        // P3 (x2, y2)
-        vertexBuffer.putFloat(mat.m00() * x2 + mat.m10() * y2 + mat.m30()).putFloat(
-                mat.m01() * x2 + mat.m11() * y2 + mat.m31()).putFloat(
-                        mat.m02() * x2 + mat.m12() * y2 + mat.m32()).putInt(color).putFloat(u2).putFloat(v2).putFloat(
-                                texIndex);
-
-        // P4 (x1, y2)
-        vertexBuffer.putFloat(mat.m00() * x1 + mat.m10() * y2 + mat.m30()).putFloat(
-                mat.m01() * x1 + mat.m11() * y2 + mat.m31()).putFloat(
-                        mat.m02() * x1 + mat.m12() * y2 + mat.m32()).putInt(color).putFloat(u1).putFloat(v2).putFloat(
-                                texIndex);
+        putVertex(x1, y1, u1, v1, texIndex, color);
+        putVertex(x2, y1, u2, v1, texIndex, color);
+        putVertex(x2, y2, u2, v2, texIndex, color);
+        putVertex(x1, y2, u1, v2, texIndex, color);
 
         quadCount++;
+    }
+
+    private void putVertex(float x, float y, float u, float v, float texIndex, int color) {
+        Matrix4f mat = matrixStack.current();
+        vertexBuffer.putFloat(mat.m00() * x + mat.m10() * y + mat.m30()).putFloat(
+                mat.m01() * x + mat.m11() * y + mat.m31()).putFloat(
+                        mat.m02() * x + mat.m12() * y + mat.m32()).putInt(color).putFloat(u).putFloat(v).putFloat(
+                                texIndex);
     }
 
     public void flush() {

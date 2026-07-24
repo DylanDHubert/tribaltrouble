@@ -18,6 +18,9 @@ public final class RallyPointDelegate extends TargetDelegate {
 
     @Override
     public void mousePressed(@NonNull MouseButton button, int x, int y) {
+        if (tryHandleMinimapClick(button, x, y)) {
+            return;
+        }
         if (building.isDead()) {
             pop();
             return;

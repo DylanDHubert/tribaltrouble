@@ -16,6 +16,7 @@ import com.oddlabs.tt.global.Globals;
 import com.oddlabs.tt.gui.ActionButtonPanel;
 import com.oddlabs.tt.gui.GUIRoot;
 import com.oddlabs.tt.gui.Group;
+import com.oddlabs.tt.gui.MinimapPanel;
 import com.oddlabs.tt.landscape.AudioImplementation;
 import com.oddlabs.tt.landscape.LandscapeResources;
 import com.oddlabs.tt.landscape.NotificationListener;
@@ -60,6 +61,7 @@ public final class WorldViewer implements Animated, AutoCloseable {
 
     private final @NonNull GameCamera camera;
     private final @NonNull ActionButtonPanel panel;
+    private final @NonNull MinimapPanel minimap_panel;
     private final @NonNull SelectionDelegate delegate;
     private final @NonNull DistributableTable distributable_table;
     private final @NonNull PeerHub peerhub;
@@ -160,6 +162,7 @@ public final class WorldViewer implements Animated, AutoCloseable {
                 session_id, new ViewerStallHandler(this));
         this.camera = new GameCamera(this, camera_state);
         this.panel = new ActionButtonPanel(this, camera);
+        this.minimap_panel = new MinimapPanel(this);
         this.delegate = new SelectionDelegate(this, camera);
         camera.reset(getLocalPlayer().getStartX(), getLocalPlayer().getStartY());
         initPlayers(world_info.starting_locations(), player_slots, world.getPlayers(), unit_infos,
@@ -181,6 +184,7 @@ public final class WorldViewer implements Animated, AutoCloseable {
         LocalEventQueue.getQueue().getManager().removeAnimation(this);
         peerhub.close();
         ingame_info.close(this);
+        minimap_panel.dispose();  // Clean up GPU resources
         Renderer.getRenderer().setCheat(null);
     }
 
@@ -277,7 +281,7 @@ public final class WorldViewer implements Animated, AutoCloseable {
         }
     }
 
-    private @NonNull LandscapeRenderer getLandscapeRenderer() {
+    public @NonNull LandscapeRenderer getLandscapeRenderer() {
         return landscape_renderer;
     }
 
@@ -339,6 +343,10 @@ public final class WorldViewer implements Animated, AutoCloseable {
 
     public @NonNull ActionButtonPanel getPanel() {
         return panel;
+    }
+
+    public @NonNull MinimapPanel getMinimapPanel() {
+        return minimap_panel;
     }
 
     public @NonNull SelectionDelegate getDelegate() {

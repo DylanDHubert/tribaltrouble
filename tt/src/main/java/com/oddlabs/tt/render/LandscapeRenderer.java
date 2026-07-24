@@ -70,6 +70,10 @@ public final class LandscapeRenderer implements SceneRenderer, Animated {
         return world.getHeightMap();
     }
 
+    public @NonNull Texture getDiffuseMap() {
+        return diffuseMap;
+    }
+
     public void pick(@NonNull CameraState camera, boolean visible_override, @NonNull Set<LandscapeLeaf> set) {
         doPrepareAll(camera, visible_override, false, set);
     }

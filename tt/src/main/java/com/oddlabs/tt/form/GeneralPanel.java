@@ -123,6 +123,16 @@ public class GeneralPanel extends Panel {
         cb_show_compass.place();
         group_show_compass.compileCanvas();
 
+        // Show minimap
+        Group group_show_minimap = new Group();
+        addChild(group_show_minimap);
+        CheckBox cb_show_minimap = new CheckBox(Settings.getSettings().show_minimap, AbstractOptionsMenu.i18n(
+                "show_minimap"), AbstractOptionsMenu.i18n("show_minimap_tip"));
+        cb_show_minimap.addCheckBoxListener(marked -> Settings.getSettings().show_minimap = marked);
+        group_show_minimap.addChild(cb_show_minimap);
+        cb_show_minimap.place();
+        group_show_minimap.compileCanvas();
+
         // Multiplayer domain
         Group group_domain = new Group();
         addChild(group_domain);
@@ -163,7 +173,8 @@ public class GeneralPanel extends Panel {
         group_invert_camera.place(group_tooltip, BOTTOM_LEFT);
         group_aggressive_units.place(group_invert_camera, BOTTOM_LEFT);
         group_show_compass.place(group_aggressive_units, BOTTOM_LEFT);
-        group_domain.place(group_show_compass, BOTTOM_LEFT);
+        group_show_minimap.place(group_show_compass, BOTTOM_LEFT);
+        group_domain.place(group_show_minimap, BOTTOM_LEFT);
         compileCanvas();
     }
 
