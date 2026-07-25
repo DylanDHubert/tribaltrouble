@@ -173,6 +173,11 @@ public final class MapCamera extends Camera {
         this.mapGoto(x, y, false);
     }
 
+    /** True once the overview has finished flying in and is idle looking straight down. */
+    public boolean isSettled() {
+        return map_mode == MapMode.IN_MAP;
+    }
+
     public void mapGoto(float x, float y, boolean override) {
         if (map_mode == MapMode.IN_MAP || override) {
             // Land the eye near the click using a fixed 45° angle (avoids weird views

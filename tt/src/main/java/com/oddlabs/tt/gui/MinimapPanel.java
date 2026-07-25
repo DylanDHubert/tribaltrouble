@@ -1,6 +1,7 @@
 package com.oddlabs.tt.gui;
 
 import com.oddlabs.tt.camera.GameCamera;
+import com.oddlabs.tt.camera.CameraState;
 import com.oddlabs.tt.delegate.JumpDelegate;
 import com.oddlabs.tt.font.Font;
 import com.oddlabs.tt.font.TextLineRenderer;
@@ -25,6 +26,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
@@ -54,9 +56,8 @@ public final class MinimapPanel extends GUIObject {
     private static final Vector4fc BUILDING_COLOR = new Vector4f(0.3f, 1f, 0.3f, 1f);       // green
     private static final Vector4fc VIEWPORT_COLOR = new Vector4f(1f, 1f, 1f, 1f);           // white
     private static final Vector4fc KEY_POINT_LABEL_COLOR = new Vector4f(1f, 1f, 0.92f, 1f);
-    private static final Vector4fc KEY_POINT_MARKER_COLOR = new Vector4f(1f, 0.95f, 0.55f, 1f);
-    private static final float KEY_POINT_MARKER_SIZE = 3f;
     private static final float KEY_POINT_FONT_SCALE = 12f / 13f;
+    private static final float MAP_MODE_FONT_SCALE = 2f;
 
     // HEIGHTMAP COLOR STOPS (DEEP WATER -> PEAK)
     private static final Vector4fc DEEP_WATER_COLOR = new Vector4f(0.05f, 0.15f, 0.35f, 1f);
@@ -526,7 +527,6 @@ public final class MinimapPanel extends GUIObject {
         }
 
         Font font = Skin.getSkin().getEditFont();
-        float halfMarker = KEY_POINT_MARKER_SIZE / 2f;
 
         for (KeyPoint point : keyPoints) {
             float normX = point.worldX() / metersPerWorld;
@@ -534,12 +534,7 @@ public final class MinimapPanel extends GUIObject {
             float sx = mapX + clamp01(normX) * mapW;
             float sy = mapY + clamp01(normY) * mapH;
 
-            renderer.drawColoredQuad(
-                    sx - halfMarker, sy - halfMarker,
-                    KEY_POINT_MARKER_SIZE, KEY_POINT_MARKER_SIZE,
-                    KEY_POINT_MARKER_COLOR);
-
-            // Center the label on the marker so the name sits on the landmark itself
+            // Center the label on the landmark itself (no marker dot)
             float textWidth = font.getWidth(point.name()) * KEY_POINT_FONT_SCALE;
             float textX = sx - textWidth / 2f;
             float textY = sy - font.getHeight() * KEY_POINT_FONT_SCALE / 2f;
@@ -554,6 +549,82 @@ public final class MinimapPanel extends GUIObject {
                     KEY_POINT_FONT_SCALE,
                     KEY_POINT_LABEL_COLOR);
         }
+    }
+
+    /**
+     * Draw the same named landmarks as the minimap, projected into map-mode screen space.
+     * Uses the panel's already-named key-point list so race, names and world positions stay
+     * identical between the corner minimap and the Space overview.
+     */
+    public void renderKeyPointsInMapMode(
+            @NonNull GUIRenderer renderer,
+            @NonNull CameraState camera,
+            int screenWidth,
+            int screenHeight) {
+        if (keyPoints.isEmpty()) {
+            return;
+        }
+
+        HeightMap heightMap = viewer.getWorld().getHeightMap();
+        Font font = Skin.getSkin().getEditFont();
+        Vector4f projected = new Vector4f();
+
+        for (KeyPoint point : keyPoints) {
+            float worldZ = heightMap.getNearestHeight(point.worldX(), point.worldY());
+            if (!projectWorldToScreen(
+                    camera, point.worldX(), point.worldY(), worldZ, screenWidth, screenHeight, projected)) {
+                continue;
+            }
+
+            float sx = projected.x;
+            float sy = projected.y;
+            if (sx < -40f || sy < -20f || sx > screenWidth + 40f || sy > screenHeight + 20f) {
+                continue;
+            }
+
+            float textWidth = font.getWidth(point.name()) * MAP_MODE_FONT_SCALE;
+            float textX = sx - textWidth / 2f;
+            float textY = sy - font.getHeight() * MAP_MODE_FONT_SCALE / 2f;
+            TextLineRenderer.renderScaled(
+                    renderer,
+                    font,
+                    point.name(),
+                    textX,
+                    textY,
+                    0f,
+                    screenWidth,
+                    MAP_MODE_FONT_SCALE,
+                    KEY_POINT_LABEL_COLOR);
+        }
+    }
+
+    /**
+     * Same projection used by {@link Arrow}: clip-space via the camera, then NDC → pixels.
+     *
+     * @return false when the point is behind / too close to the near plane
+     */
+    private static boolean projectWorldToScreen(
+            @NonNull CameraState camera,
+            float worldX,
+            float worldY,
+            float worldZ,
+            int screenWidth,
+            int screenHeight,
+            @NonNull Vector4f out) {
+        out.set(worldX, worldY, worldZ, 1f);
+        camera.getProjectionModelView().transform(out, out);
+        if (out.w <= 0.05f) {
+            return false;
+        }
+        float invW = 1f / out.w;
+        out.x = (out.x * invW + 1f) * 0.5f * screenWidth;
+        out.y = (out.y * invW + 1f) * 0.5f * screenHeight;
+        return true;
+    }
+
+    /** Unmodifiable view of the named landmarks shared with map mode. */
+    public @NonNull List<KeyPoint> getKeyPoints() {
+        return Collections.unmodifiableList(keyPoints);
     }
 
     private void drawTerrainLayers(

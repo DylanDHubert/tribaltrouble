@@ -517,6 +517,15 @@ public final class SelectionDelegate extends ControllableCameraDelegate {
         // Render minimap (from InGameDelegate)
         super.render2D(renderer);
 
+        // Same named landmarks as the corner minimap, projected into the Space overview
+        if (map_mode && getCamera() instanceof MapCamera mapCamera && mapCamera.isSettled()) {
+            getViewer().getMinimapPanel().renderKeyPointsInMapMode(
+                    renderer,
+                    mapCamera.getState(),
+                    getGUIRoot().getWidth(),
+                    getGUIRoot().getHeight());
+        }
+
         if (com.oddlabs.tt.global.Settings.getSettings().show_compass && getCamera() != null) {
             float horizAngle = getCamera().getState().getHorizAngle();
             CompassRenderer.render(renderer, Skin.getSkin().getEditFont(),
