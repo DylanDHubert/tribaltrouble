@@ -78,6 +78,11 @@ public final class Settings implements Serializable {
     public boolean minimap_expanded = true;
     public boolean minimap_show_unwalkable = true;
     public boolean minimap_satellite = false;
+    /** Square map face size in pixels (border/header not included). */
+    public static final int MINIMAP_SIZE_MIN = 150;
+    public static final int MINIMAP_SIZE_MAX = 400;
+    public static final int MINIMAP_SIZE_DEFAULT = 250;
+    public int minimap_size = MINIMAP_SIZE_DEFAULT;
     public boolean confine_cursor = true;
 
     // gameplay
@@ -234,6 +239,7 @@ public final class Settings implements Serializable {
         setProperty(props, "minimap_expanded", minimap_expanded, defaults.minimap_expanded);
         setProperty(props, "minimap_show_unwalkable", minimap_show_unwalkable, defaults.minimap_show_unwalkable);
         setProperty(props, "minimap_satellite", minimap_satellite, defaults.minimap_satellite);
+        setProperty(props, "minimap_size", minimap_size, defaults.minimap_size);
         setProperty(props, "confine_cursor", confine_cursor, defaults.confine_cursor);
         setProperty(props, "gamespeed", gamespeed, defaults.gamespeed);
         setProperty(props, "mapmode_delay", mapmode_delay, defaults.mapmode_delay);
@@ -303,6 +309,7 @@ public final class Settings implements Serializable {
         minimap_expanded = getBoolean(props, "minimap_expanded", minimap_expanded);
         minimap_show_unwalkable = getBoolean(props, "minimap_show_unwalkable", minimap_show_unwalkable);
         minimap_satellite = getBoolean(props, "minimap_satellite", minimap_satellite);
+        minimap_size = clampMinimapSize(getInt(props, "minimap_size", minimap_size));
         confine_cursor = getBoolean(props, "confine_cursor", confine_cursor);
         gamespeed = getInt(props, "gamespeed", gamespeed);
         mapmode_delay = getFloat(props, "mapmode_delay", mapmode_delay);
@@ -386,6 +393,10 @@ public final class Settings implements Serializable {
                     "WARNING: Invalid value for setting '" + key + "': '" + value + "'. Using default value '" + defaultValue + "'.");
             return defaultValue;
         }
+    }
+
+    public static int clampMinimapSize(int size) {
+        return Math.max(MINIMAP_SIZE_MIN, Math.min(MINIMAP_SIZE_MAX, size));
     }
 
     private float getFloat(@NonNull Properties props, @NonNull String key, float defaultValue) {

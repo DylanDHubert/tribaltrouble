@@ -133,6 +133,31 @@ public class GeneralPanel extends Panel {
         cb_show_minimap.place();
         group_show_minimap.compileCanvas();
 
+        // Minimap size
+        Group group_minimap_size = new Group();
+        addChild(group_minimap_size);
+        Label label_minimap_size = new Label(AbstractOptionsMenu.i18n("minimap_size"), Skin.getSkin().getEditFont());
+        group_minimap_size.addChild(label_minimap_size);
+        Label label_minimap_small = new Label(AbstractOptionsMenu.i18n("minimap_size_small"),
+                Skin.getSkin().getEditFont());
+        group_minimap_size.addChild(label_minimap_small);
+        Label label_minimap_large = new Label(AbstractOptionsMenu.i18n("minimap_size_large"),
+                Skin.getSkin().getEditFont());
+        group_minimap_size.addChild(label_minimap_large);
+        Slider slider_minimap_size = new Slider(
+                SLIDER_WIDTH,
+                Settings.MINIMAP_SIZE_MIN,
+                Settings.MINIMAP_SIZE_MAX,
+                Settings.clampMinimapSize(Settings.getSettings().minimap_size));
+        group_minimap_size.addChild(slider_minimap_size);
+        slider_minimap_size.addValueListener(value ->
+                Settings.getSettings().minimap_size = Settings.clampMinimapSize((int) value));
+        label_minimap_size.place();
+        label_minimap_small.place(label_minimap_size, BOTTOM_LEFT);
+        slider_minimap_size.place(label_minimap_small, RIGHT_MID);
+        label_minimap_large.place(slider_minimap_size, RIGHT_MID);
+        group_minimap_size.compileCanvas();
+
         // Multiplayer domain
         Group group_domain = new Group();
         addChild(group_domain);
@@ -174,7 +199,8 @@ public class GeneralPanel extends Panel {
         group_aggressive_units.place(group_invert_camera, BOTTOM_LEFT);
         group_show_compass.place(group_aggressive_units, BOTTOM_LEFT);
         group_show_minimap.place(group_show_compass, BOTTOM_LEFT);
-        group_domain.place(group_show_minimap, BOTTOM_LEFT);
+        group_minimap_size.place(group_show_minimap, BOTTOM_LEFT);
+        group_domain.place(group_minimap_size, BOTTOM_LEFT);
         compileCanvas();
     }
 
