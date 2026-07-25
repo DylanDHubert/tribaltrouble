@@ -85,4 +85,67 @@ public final class TextLineRenderer {
             return currentX;
         });
     }
+
+    /**
+     * Render one line at a uniform scale. Useful for compact overlays that share an existing
+     * bitmap font rather than loading a near-duplicate font asset.
+     */
+    public static float renderScaled(
+            @NonNull GUIRenderer renderer,
+            @NonNull Font font,
+            @NonNull CharSequence text,
+            float x,
+            float y,
+            float clipLeft,
+            float clipRight,
+            float scale,
+            @NonNull Vector4fc color) {
+        float currentX = x;
+        for (int codePoint : text.codePoints().toArray()) {
+            if (codePoint == '\n') {
+                continue;
+            }
+
+            Quad quad = font.getQuad(codePoint);
+            if (quad == null) {
+                continue;
+            }
+
+            float quadWidth = quad.getWidth() * scale;
+            float charAdvance = (quad.getWidth() - font.getXBorder()) * scale;
+            float renderX = currentX;
+            float renderWidth = quadWidth;
+            float u1 = quad.getU1();
+            float u2 = quad.getU2();
+            float textureUWidth = u2 - u1;
+
+            if (renderX < clipLeft) {
+                float leftClip = clipLeft - renderX;
+                u1 += textureUWidth * (leftClip / quadWidth);
+                renderWidth -= leftClip;
+                renderX = clipLeft;
+            }
+            if (renderX + renderWidth > clipRight) {
+                float rightClip = renderX + renderWidth - clipRight;
+                u2 -= textureUWidth * (rightClip / quadWidth);
+                renderWidth -= rightClip;
+            }
+
+            if (renderWidth > 0f && renderX <= clipRight && renderX + renderWidth >= clipLeft) {
+                renderer.drawTexture(
+                        font.getTexture(),
+                        renderX,
+                        y,
+                        renderWidth,
+                        quad.getHeight() * scale,
+                        u1,
+                        quad.getV1(),
+                        u2,
+                        quad.getV2(),
+                        color);
+            }
+            currentX += charAdvance;
+        }
+        return currentX;
+    }
 }

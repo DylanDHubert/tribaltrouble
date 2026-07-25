@@ -8,6 +8,7 @@ import com.oddlabs.tt.global.Settings;
 import com.oddlabs.tt.landscape.HeightMap;
 import com.oddlabs.tt.landscape.KeyPoint;
 import com.oddlabs.tt.landscape.KeyPointDetector;
+import com.oddlabs.tt.landscape.KeyPointNamer;
 import com.oddlabs.tt.model.Building;
 import com.oddlabs.tt.model.Selectable;
 import com.oddlabs.tt.model.Unit;
@@ -39,7 +40,6 @@ import java.util.function.BooleanSupplier;
 public final class MinimapPanel extends GUIObject {
 
     // Layout constants
-    private static final int MAP_SIZE = 250;
     private static final int HEADER_HEIGHT = 15;
     private static final int COLLAPSED_SIZE = 24;
     private static final int BORDER_WIDTH = 2;
@@ -56,6 +56,7 @@ public final class MinimapPanel extends GUIObject {
     private static final Vector4fc KEY_POINT_LABEL_COLOR = new Vector4f(1f, 1f, 0.92f, 1f);
     private static final Vector4fc KEY_POINT_MARKER_COLOR = new Vector4f(1f, 0.95f, 0.55f, 1f);
     private static final float KEY_POINT_MARKER_SIZE = 3f;
+    private static final float KEY_POINT_FONT_SCALE = 12f / 13f;
 
     // HEIGHTMAP COLOR STOPS (DEEP WATER -> PEAK)
     private static final Vector4fc DEEP_WATER_COLOR = new Vector4f(0.05f, 0.15f, 0.35f, 1f);
@@ -133,8 +134,10 @@ public final class MinimapPanel extends GUIObject {
         this.viewer = viewer;
         HeightMap heightMap = viewer.getWorld().getHeightMap();
         this.metersPerWorld = heightMap.getMetersPerWorld();
-        // Map-derived only — same labels for every player on this seed/params
-        this.keyPoints = KeyPointDetector.detect(heightMap);
+        // Geometry is map-derived (identical for everyone); names use the local player's race, so
+        // teammates of the same race read identical names for the same seed.
+        int race = viewer.getLocalPlayer().getPlayerInfo().getRace();
+        this.keyPoints = KeyPointNamer.name(race, KeyPointDetector.detect(heightMap));
 
         // BAKE BOTH BASES + OVERLAYS ONCE AT MAP LOAD; TOGGLES ONLY CHANGE DRAW VISIBILITY
         bakeLayers(heightMap);
@@ -437,10 +440,16 @@ public final class MinimapPanel extends GUIObject {
 
     private void updateDimensions() {
         if (Settings.getSettings().minimap_expanded) {
-            setDim(MAP_SIZE + 2 * BORDER_WIDTH, MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH);
+            int mapSize = mapSize();
+            setDim(mapSize + 2 * BORDER_WIDTH, mapSize + HEADER_HEIGHT + 2 * BORDER_WIDTH);
         } else {
             setDim(COLLAPSED_SIZE, COLLAPSED_SIZE);
         }
+    }
+
+    /** Current square map-face size in pixels from settings. */
+    private static int mapSize() {
+        return Settings.clampMinimapSize(Settings.getSettings().minimap_size);
     }
 
     /**
@@ -473,8 +482,9 @@ public final class MinimapPanel extends GUIObject {
     }
 
     private void renderExpanded(@NonNull GUIRenderer renderer, int posX, int posY) {
-        int w = MAP_SIZE + 2 * BORDER_WIDTH;
-        int h = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
+        int mapSize = mapSize();
+        int w = mapSize + 2 * BORDER_WIDTH;
+        int h = mapSize + HEADER_HEIGHT + 2 * BORDER_WIDTH;
 
         renderer.drawColoredQuad(posX, posY, w, h, BG_COLOR);
 
@@ -530,10 +540,10 @@ public final class MinimapPanel extends GUIObject {
                     KEY_POINT_MARKER_COLOR);
 
             // Center the label on the marker so the name sits on the landmark itself
-            int textWidth = font.getWidth(point.name());
+            float textWidth = font.getWidth(point.name()) * KEY_POINT_FONT_SCALE;
             float textX = sx - textWidth / 2f;
-            float textY = sy - font.getHeight() / 2f;
-            TextLineRenderer.render(
+            float textY = sy - font.getHeight() * KEY_POINT_FONT_SCALE / 2f;
+            TextLineRenderer.renderScaled(
                     renderer,
                     font,
                     point.name(),
@@ -541,6 +551,7 @@ public final class MinimapPanel extends GUIObject {
                     textY,
                     mapX,
                     mapX + mapW,
+                    KEY_POINT_FONT_SCALE,
                     KEY_POINT_LABEL_COLOR);
         }
     }
