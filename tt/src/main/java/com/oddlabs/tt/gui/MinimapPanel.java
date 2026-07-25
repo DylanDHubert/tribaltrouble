@@ -2,8 +2,12 @@ package com.oddlabs.tt.gui;
 
 import com.oddlabs.tt.camera.GameCamera;
 import com.oddlabs.tt.delegate.JumpDelegate;
+import com.oddlabs.tt.font.Font;
+import com.oddlabs.tt.font.TextLineRenderer;
 import com.oddlabs.tt.global.Settings;
 import com.oddlabs.tt.landscape.HeightMap;
+import com.oddlabs.tt.landscape.KeyPoint;
+import com.oddlabs.tt.landscape.KeyPointDetector;
 import com.oddlabs.tt.model.Building;
 import com.oddlabs.tt.model.Selectable;
 import com.oddlabs.tt.model.Unit;
@@ -49,6 +53,9 @@ public final class MinimapPanel extends GUIObject {
     private static final Vector4fc UNIT_COLOR = new Vector4f(0.3f, 1f, 0.3f, 1f);           // green
     private static final Vector4fc BUILDING_COLOR = new Vector4f(0.3f, 1f, 0.3f, 1f);       // green
     private static final Vector4fc VIEWPORT_COLOR = new Vector4f(1f, 1f, 1f, 1f);           // white
+    private static final Vector4fc KEY_POINT_LABEL_COLOR = new Vector4f(1f, 1f, 0.92f, 1f);
+    private static final Vector4fc KEY_POINT_MARKER_COLOR = new Vector4f(1f, 0.95f, 0.55f, 1f);
+    private static final float KEY_POINT_MARKER_SIZE = 3f;
 
     // HEIGHTMAP COLOR STOPS (DEEP WATER -> PEAK)
     private static final Vector4fc DEEP_WATER_COLOR = new Vector4f(0.05f, 0.15f, 0.35f, 1f);
@@ -114,6 +121,7 @@ public final class MinimapPanel extends GUIObject {
 
     private final @NonNull WorldViewer viewer;
     private final int metersPerWorld;
+    private final @NonNull List<KeyPoint> keyPoints;
     private @Nullable Texture terrainHeightBase;
     private @Nullable Texture terrainSatelliteBase;
     private final @NonNull List<OverlayLayer> overlays = new ArrayList<>();
@@ -125,6 +133,8 @@ public final class MinimapPanel extends GUIObject {
         this.viewer = viewer;
         HeightMap heightMap = viewer.getWorld().getHeightMap();
         this.metersPerWorld = heightMap.getMetersPerWorld();
+        // Map-derived only — same labels for every player on this seed/params
+        this.keyPoints = KeyPointDetector.detect(heightMap);
 
         // BAKE BOTH BASES + OVERLAYS ONCE AT MAP LOAD; TOGGLES ONLY CHANGE DRAW VISIBILITY
         bakeLayers(heightMap);
@@ -491,7 +501,48 @@ public final class MinimapPanel extends GUIObject {
         renderer.flush();
 
         renderEntities(renderer, mapX, mapY, mapW, mapH);
+        renderKeyPoints(renderer, mapX, mapY, mapW, mapH);
         renderViewport(renderer, mapX, mapY, mapW, mapH);
+    }
+
+    private void renderKeyPoints(
+            @NonNull GUIRenderer renderer,
+            float mapX,
+            float mapY,
+            float mapW,
+            float mapH) {
+        if (keyPoints.isEmpty()) {
+            return;
+        }
+
+        Font font = Skin.getSkin().getEditFont();
+        float halfMarker = KEY_POINT_MARKER_SIZE / 2f;
+
+        for (KeyPoint point : keyPoints) {
+            float normX = point.worldX() / metersPerWorld;
+            float normY = point.worldY() / metersPerWorld;
+            float sx = mapX + clamp01(normX) * mapW;
+            float sy = mapY + clamp01(normY) * mapH;
+
+            renderer.drawColoredQuad(
+                    sx - halfMarker, sy - halfMarker,
+                    KEY_POINT_MARKER_SIZE, KEY_POINT_MARKER_SIZE,
+                    KEY_POINT_MARKER_COLOR);
+
+            // Center the label on the marker so the name sits on the landmark itself
+            int textWidth = font.getWidth(point.name());
+            float textX = sx - textWidth / 2f;
+            float textY = sy - font.getHeight() / 2f;
+            TextLineRenderer.render(
+                    renderer,
+                    font,
+                    point.name(),
+                    textX,
+                    textY,
+                    mapX,
+                    mapX + mapW,
+                    KEY_POINT_LABEL_COLOR);
+        }
     }
 
     private void drawTerrainLayers(
