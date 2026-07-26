@@ -39,7 +39,7 @@ public final class InputManager {
 
         def(GameAction.GLOBAL_TOGGLE_FULLSCREEN, Key.F11);
         def(GameAction.GLOBAL_SCREENSHOT, Key.S, Modifier.CONTROL);
-        def(GameAction.GLOBAL_SCREENSHOT, Key.P, Modifier.CONTROL);
+        // CTRL+P RESERVED FOR UNIT_FILTER_IDLE_PEONS / TRAIN_PEON_BATCH (WAS A DUPLICATE SCREENSHOT BIND)
         def(GameAction.GLOBAL_CHAT, Key.RETURN);
         def(GameAction.GLOBAL_CHAT_TEAM, Key.RETURN, Modifier.SHIFT);
         def(GameAction.GLOBAL_MENU, Key.ESCAPE);
@@ -119,6 +119,9 @@ public final class InputManager {
         def(GameAction.UNIT_EXIT_TOWER, Key.X);
         def(GameAction.UNIT_BEACON, Key.B, Modifier.CONTROL);
         def(GameAction.UNIT_NEXT_IDLE, Key.N);
+        def(GameAction.UNIT_FILTER_IDLE_PEONS, Key.P, Modifier.CONTROL);
+        def(GameAction.UNIT_FILTER_WARRIORS, Key.W, Modifier.CONTROL);
+        def(GameAction.UNIT_FILTER_CHIEFTAIN, Key.C, Modifier.CONTROL);
         def(GameAction.UNIT_SET_RALLY, Key.R);
         def(GameAction.GAMEPLAY_BACK, Key.BACK);
 

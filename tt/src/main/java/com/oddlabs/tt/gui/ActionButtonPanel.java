@@ -18,8 +18,11 @@ import com.oddlabs.tt.model.IronSupply;
 import com.oddlabs.tt.model.Race;
 import com.oddlabs.tt.model.RockSupply;
 import com.oddlabs.tt.model.RubberSupply;
+import com.oddlabs.tt.model.Selectable;
 import com.oddlabs.tt.model.SupplyCounter;
 import com.oddlabs.tt.model.Unit;
+import com.oddlabs.tt.model.behaviour.IdleController;
+import com.oddlabs.tt.model.behaviour.WalkController;
 import com.oddlabs.tt.model.weapon.IronAxeWeapon;
 import com.oddlabs.tt.model.weapon.RockAxeWeapon;
 import com.oddlabs.tt.model.weapon.RubberAxeWeapon;
@@ -31,11 +34,13 @@ import com.oddlabs.tt.viewer.WorldViewer;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public final class ActionButtonPanel extends GUIObject implements Animated {
     private static final int GROUP_LEFT_OFFSET = 10;
@@ -72,6 +77,9 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
     //	private boolean tower_exit_button_disabled;
     private final @NonNull NonFocusIconButton move_button;
     private final @NonNull NonFocusIconButton attack_button;
+    private final @NonNull NonFocusIconButton select_idle_peons_button;
+    private final @NonNull NonFocusIconButton select_warriors_button;
+    private final @NonNull NonFocusIconButton select_chieftain_button;
     private final @NonNull NonFocusIconButton gather_repair_button;
     private final @NonNull NonFocusIconButton quarters_button;
     //	private boolean quarters_button_disabled;
@@ -172,8 +180,29 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
         unit_group.addChild(attack_button);
         attack_button.addMouseClickListener((_, _, _, _) -> pushDelegate(new TargetDelegate(viewer, camera,
                 Action.ATTACK)));
+        // FILTER CURRENT SELECTION TO IDLE / FREE PEONS (IDLE OR WALKING, NOT GATHERING/BUILDING)
+        select_idle_peons_button = new NonFocusIconButton(race_icons.peonIcon(), GameAction.UNIT_FILTER_IDLE_PEONS,
+                () -> i18n("select_idle_peons_tip", getBinding(GameAction.UNIT_FILTER_IDLE_PEONS)));
+        select_idle_peons_button.setIconDisabler(() -> !selectionHasAvailablePeon());
+        unit_group.addChild(select_idle_peons_button);
+        select_idle_peons_button.addMouseClickListener((_, _, _, _) -> filterSelectionToAvailablePeons());
+        // FILTER CURRENT SELECTION TO WARRIORS (ANY STATE)
+        select_warriors_button = new NonFocusIconButton(race_icons.warriorRockIcon(), GameAction.UNIT_FILTER_WARRIORS,
+                () -> i18n("select_warriors_tip", getBinding(GameAction.UNIT_FILTER_WARRIORS)));
+        select_warriors_button.setIconDisabler(() -> !selectionHasWarrior());
+        unit_group.addChild(select_warriors_button);
+        select_warriors_button.addMouseClickListener((_, _, _, _) -> filterSelectionToWarriors());
+        // FILTER CURRENT SELECTION TO CHIEFTAIN
+        select_chieftain_button = new NonFocusIconButton(race_icons.chieftainIcon(), GameAction.UNIT_FILTER_CHIEFTAIN,
+                () -> i18n("select_chieftain_tip", getBinding(GameAction.UNIT_FILTER_CHIEFTAIN)));
+        select_chieftain_button.setIconDisabler(() -> !selectionHasChieftain());
+        unit_group.addChild(select_chieftain_button);
+        select_chieftain_button.addMouseClickListener((_, _, _, _) -> filterSelectionToChieftain());
         move_button.place();
         attack_button.place(move_button, Placement.BOTTOM_MID);
+        select_idle_peons_button.place(attack_button, Placement.BOTTOM_MID);
+        select_warriors_button.place(select_idle_peons_button, Placement.BOTTOM_MID);
+        select_chieftain_button.place(select_warriors_button, Placement.BOTTOM_MID);
         unit_group.compileCanvas(GROUP_LEFT_OFFSET, 0, GROUP_RIGHT_OFFSET, GROUP_BOTTOM_OFFSET);
 
         gather_repair_button = new NonFocusIconButton(race_icons.gatherRepairIcon(), GameAction.UNIT_GATHER,
@@ -720,6 +749,12 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
                 // === Normal Unit / Peon Actions ===
                 else if (current_unit && event.consumeAction(GameAction.UNIT_MOVE)) {
                     activate(event, move_button);
+                } else if (current_unit && event.consumeAction(GameAction.UNIT_FILTER_IDLE_PEONS)) {
+                    activate(event, select_idle_peons_button);
+                } else if (current_unit && event.consumeAction(GameAction.UNIT_FILTER_WARRIORS)) {
+                    activate(event, select_warriors_button);
+                } else if (current_unit && event.consumeAction(GameAction.UNIT_FILTER_CHIEFTAIN)) {
+                    activate(event, select_chieftain_button);
                 } else if (current_unit && current_peon && event.consumeAction(GameAction.UNIT_BUILD_QUARTERS)) {
                     // Q - Build Quarters with Peon
                     activate(event, quarters_button);
@@ -885,6 +920,73 @@ public final class ActionButtonPanel extends GUIObject implements Animated {
     private void activate(@NonNull InputEvent event, @NonNull GUIObject button) {
         button.mouseClickedAll(MouseButton.LEFT, 0, 0, 1);
         event.consume();
+    }
+
+    // PEON THAT IS IDLE OR ONLY MOVING (NOT GATHERING / BUILDING / REPAIRING)
+    private static boolean isAvailablePeon(@NonNull Selectable<?> s) {
+        if (!s.getAbilities().hasAbilities(Abilities.BUILD))
+            return false;
+        var controller = s.getPrimaryController();
+        return controller instanceof IdleController || controller instanceof WalkController;
+    }
+
+    private static boolean isWarrior(@NonNull Selectable<?> s) {
+        return s.getAbilities().hasAbilities(Abilities.THROW);
+    }
+
+    private static boolean isChieftain(@NonNull Selectable<?> s) {
+        return s.getAbilities().hasAbilities(Abilities.MAGIC);
+    }
+
+    private boolean selectionHasAvailablePeon() {
+        for (Selectable<?> s : viewer.getSelection().getCurrentSelection().getSet()) {
+            if (isAvailablePeon(s))
+                return true;
+        }
+        return false;
+    }
+
+    private boolean selectionHasWarrior() {
+        for (Selectable<?> s : viewer.getSelection().getCurrentSelection().getSet()) {
+            if (isWarrior(s))
+                return true;
+        }
+        return false;
+    }
+
+    private boolean selectionHasChieftain() {
+        for (Selectable<?> s : viewer.getSelection().getCurrentSelection().getSet()) {
+            if (isChieftain(s))
+                return true;
+        }
+        return false;
+    }
+
+    private void filterSelectionToAvailablePeons() {
+        filterCurrentSelection(ActionButtonPanel::isAvailablePeon);
+    }
+
+    private void filterSelectionToWarriors() {
+        filterCurrentSelection(ActionButtonPanel::isWarrior);
+    }
+
+    private void filterSelectionToChieftain() {
+        filterCurrentSelection(ActionButtonPanel::isChieftain);
+    }
+
+    private void filterCurrentSelection(@NonNull Predicate<Selectable<?>> keep) {
+        var army = viewer.getSelection().getCurrentSelection();
+        List<Selectable<?>> kept = new ArrayList<>();
+        for (Selectable<?> s : army.getSet()) {
+            if (keep.test(s))
+                kept.add(s);
+        }
+        // NO MATCHES: LEAVE SELECTION UNCHANGED
+        if (kept.isEmpty())
+            return;
+        army.clear();
+        for (Selectable<?> s : kept)
+            army.add(s);
     }
 
     private record ResourceAction(boolean active, boolean decrement, boolean batch) {
