@@ -65,8 +65,8 @@ final class ReplayWorldStarter implements LoadCallback {
         UnitInfo[] corrected_unit_infos = unit_info_list.toArray(new UnitInfo[0]);
         WorldViewer viewer = new WorldViewer(network, gui_root, world_params, ingame_info, generator,
                 corrected_slots, corrected_unit_infos, corrected_player_slot, new SessionID(session_id));
-        GameModeRegistry.get(viewer.getWorld().getGameMode()).onGameStart(viewer);
         if (initial_action != null) initial_action.run(viewer);
+        GameModeRegistry.get(viewer.getWorld().getGameMode()).onGameStart(viewer);
         IO.println("ReplayWorldStarter complete (session_id = " + session_id + ")");
         return viewer.getRenderer();
     }

@@ -2,11 +2,13 @@ package com.oddlabs.tt.form;
 
 import com.oddlabs.matchmaking.Game;
 import com.oddlabs.matchmaking.GameMode;
+import com.oddlabs.matchmaking.GameModeOptions;
 import com.oddlabs.matchmaking.GameSession;
 import com.oddlabs.matchmaking.MatchmakingServerInterface;
 import com.oddlabs.matchmaking.Preset;
 import com.oddlabs.matchmaking.RosterTemplate;
 import com.oddlabs.matchmaking.StandardOptions;
+import com.oddlabs.matchmaking.TwinTotemsOptions;
 import com.oddlabs.matchmaking.WorldConfig;
 import com.oddlabs.net.NetworkSelector;
 import com.oddlabs.registration.RegistrationKey;
@@ -117,7 +119,7 @@ public final class TerrainMenu extends Group {
     private final @NonNull NetworkSelector network;
     private final @NonNull PresetLibrary preset_library = new PresetLibrary();
     private final @Nullable RosterPanel roster_panel;
-    private final @Nullable ModeAndPresetsPanel mode_and_presets;
+    private final @NonNull ModeAndPresetsPanel mode_and_presets;
     private final @NonNull ScrollablePulldownMenu<Void> pulldown_menu_slots;
     private static final int DEFAULT_PLAYER_COUNT = 6;
     private int player_count = DEFAULT_PLAYER_COUNT;
@@ -168,10 +170,8 @@ public final class TerrainMenu extends Group {
         // headline
         Label label_headline = new Label(i18n(multiplayer ? "new_game" : "skirmish"), Skin.getSkin().getHeadlineFont());
         addChild(label_headline);
-        if (multiplayer) {
-            preset_library.load(Renderer.getLocalInput().getGameDir().resolve(Globals.getPresetsFileName()));
-        }
-        mode_and_presets = multiplayer ? new ModeAndPresetsPanel(gui_root, preset_library, new PresetsHandler()) : null;
+        preset_library.load(Renderer.getLocalInput().getGameDir().resolve(Globals.getPresetsFileName()));
+        mode_and_presets = new ModeAndPresetsPanel(gui_root, preset_library, new PresetsHandler());
         Panel standard = new Panel(i18n("standard_options"));
         Panel advanced = new Panel(i18n("advanced_options"));
         roster_panel = multiplayer ? new RosterPanel() : null;
@@ -407,7 +407,7 @@ public final class TerrainMenu extends Group {
         advanced.compileCanvas();
 
         PanelGroup panel_group = multiplayer ? new PanelGroup(1, mode_and_presets, standard, advanced,
-                roster_panel) : new PanelGroup(standard, advanced);
+                roster_panel) : new PanelGroup(0, mode_and_presets, standard, advanced);
         addChild(panel_group);
         var playersChangedListener = new PulldownUpdatePlayersChangedListener(standard);
         playersChangedListener.setCurrentGroup(group_race_team);
@@ -456,9 +456,7 @@ public final class TerrainMenu extends Group {
     }
 
     private void updateBanner() {
-        if (mode_and_presets != null) {
-            mode_and_presets.setPresetState(current_preset, modified);
-        }
+        mode_and_presets.setPresetState(current_preset, modified);
     }
 
     private void setMapcode() {
@@ -775,7 +773,8 @@ public final class TerrainMenu extends Group {
                             (byte) supplies_amount).rated(rated).gamespeed(
                                     (byte) (pm_gamespeed.getChosenItemIndex() + 1)).mapcode(
                                             label_mapcode.getContents()).randomStartPos(random_start_pos).maxUnitCount(
-                                                    Player.DEFAULT_MAX_UNIT_COUNT).build();
+                                                    Player.DEFAULT_MAX_UNIT_COUNT).mode(
+                                                            mode_and_presets.getSelectedMode()).build();
         } else {
             boolean has_enemy = false;
             for (int i = 1; i < player_count; i++) {
@@ -812,7 +811,8 @@ public final class TerrainMenu extends Group {
                 new WorldParameters(multiplayer ? game.getGamespeed() : Globals.gamespeed,
                         label_mapcode.getContents(), Player.INITIAL_UNIT_COUNT,
                         multiplayer ? game.getMaxUnitCount() : Player.DEFAULT_MAX_UNIT_COUNT,
-                        pulldown_size.getChosenItemIndex()),
+                        pulldown_size.getChosenItemIndex(),
+                        multiplayer ? game.getMode() : mode_and_presets.getSelectedMode()),
                 ingame_info,
                 new Menu.DefaultWorldInitAction(),
                 game,
@@ -915,6 +915,7 @@ public final class TerrainMenu extends Group {
     private final class PresetsHandler implements ModeAndPresetsHandler {
         @Override
         public void modeChosen(@NonNull GameMode mode) {
+            markModified();
         }
 
         @Override
@@ -939,9 +940,7 @@ public final class TerrainMenu extends Group {
         }
 
         private void revertSelection() {
-            if (mode_and_presets != null) {
-                mode_and_presets.refreshPresets();
-            }
+            mode_and_presets.refreshPresets();
         }
 
         @Override
@@ -958,9 +957,7 @@ public final class TerrainMenu extends Group {
                 modified = false;
                 updateBanner();
             }
-            if (mode_and_presets != null) {
-                mode_and_presets.refreshPresets();
-            }
+            mode_and_presets.refreshPresets();
         }
 
         @Override
@@ -993,9 +990,7 @@ public final class TerrainMenu extends Group {
             current_preset = updated;
             modified = false;
             updateBanner();
-            if (mode_and_presets != null) {
-                mode_and_presets.refreshPresets();
-            }
+            mode_and_presets.refreshPresets();
         }
 
         private void saveNewPreset(@NonNull String name) {
@@ -1007,14 +1002,16 @@ public final class TerrainMenu extends Group {
             current_preset = preset;
             modified = false;
             updateBanner();
-            if (mode_and_presets != null) {
-                mode_and_presets.refreshPresets();
-            }
+            mode_and_presets.refreshPresets();
         }
     }
 
-    private @NonNull StandardOptions snapshotModeOptions() {
-        return StandardOptions.builder().rated(cb_rated.isMarked()).build();
+    private @NonNull GameModeOptions snapshotModeOptions() {
+        boolean rated = cb_rated.isMarked();
+        return switch (mode_and_presets.getSelectedMode()) {
+            case TWIN_TOTEMS -> TwinTotemsOptions.builder().rated(rated).build();
+            case STANDARD -> StandardOptions.builder().rated(rated).build();
+        };
     }
 
     private @NonNull WorldConfig snapshotWorldConfig() {
@@ -1079,7 +1076,10 @@ public final class TerrainMenu extends Group {
             pulldown_menu_slots.chooseItem(target_count - DEFAULT_PLAYER_COUNT);
         }
 
+        mode_and_presets.selectModeQuietly(preset.getMode());
         if (preset.getModeOptions() instanceof StandardOptions opts) {
+            cb_rated.setMarked(opts.isRated());
+        } else if (preset.getModeOptions() instanceof TwinTotemsOptions opts) {
             cb_rated.setMarked(opts.isRated());
         }
 
