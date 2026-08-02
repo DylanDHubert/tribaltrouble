@@ -17,8 +17,8 @@ public final class GameCamera extends Camera {
     public static final int SCROLL_BUFFER = 5;
     private static final float INIT_DISTANCE = 50;
     private static final float ANGLE_DELTA = (float) (Math.PI / 2);
-    public static final float MAX_Z = 200f; // CHANGE THIS FOR MAXIMUM CAMERA ZOOM
-    private static final float GROUND_CLEARANCE = 5.0f; 
+    public static final float MAX_Z = 200f;
+    private static final float GROUND_CLEARANCE = 1.0f; // CHANGE THIS FOR MAXIMUM CAMERA ZOOM
     private static final float ZOOM_Z_DIR_MIN = -(float) Math.tan(Math.PI / 6);
     private static final float SCROLL_ACCELERATION_SECONDS_MAX = 1f;
     private static final float SCROLL_ACCELERATION_FACTOR = 2.5f;

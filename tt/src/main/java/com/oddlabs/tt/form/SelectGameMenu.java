@@ -449,7 +449,7 @@ public final class SelectGameMenu extends Form implements MatchmakingListener, T
                     Game game = selected_game.getGame();
                     main_menu.joinGame(network, gui_root.getGUI(), selected_game.getHostID(), game.isRated(),
                             game.getGamespeed(), game.getMapcode(), this, game.getRandomStartPos(),
-                            game.getMaxUnitCount(), game.getSize(), game.getMode());
+                            game.getMaxUnitCount(), game.getSize());
                 }
             }
         }

@@ -1,7 +1,6 @@
 package com.oddlabs.tt.delegate;
 
 import com.oddlabs.matchmaking.Game;
-import com.oddlabs.matchmaking.GameMode;
 import com.oddlabs.matchmaking.MatchmakingServerInterface;
 import com.oddlabs.net.NetworkSelector;
 import com.oddlabs.tt.camera.Camera;
@@ -294,8 +293,7 @@ public abstract class Menu extends CameraDelegate<Camera> {
     public static final class DefaultWorldInitAction implements WorldInitAction {
         @Override
         public void run(@NonNull WorldViewer viewer) {
-            GameOverTrigger game_over = new GameOverTrigger(viewer);
-            viewer.setGameOverTrigger(game_over);
+            new GameOverTrigger(viewer);
             if (viewer.isMultiplayer()) {
                 viewer.getGUIRoot().pushDelegate(new CountdownDelegate(viewer, viewer.getCamera()));
             } else {
@@ -306,11 +304,11 @@ public abstract class Menu extends CameraDelegate<Camera> {
 
     public final @NonNull GameNetwork joinGame(@NonNull NetworkSelector network, GUI gui, int host_id, boolean rated,
             int gamespeed, @NonNull String map_code, SelectGameMenu owner, float random_start_pos, int max_unit_count,
-            int map_size, @NonNull GameMode mode) {
+            int map_size) {
         GUIRoot gui_root = getGUIRoot();
         Client client = new Client(null, network, gui, host_id, new WorldParameters(gamespeed, map_code,
                 Player.INITIAL_UNIT_COUNT,
-                max_unit_count, map_size, mode),
+                max_unit_count, map_size),
                 new MultiplayerInGameInfo(random_start_pos, rated),
                 new DefaultWorldInitAction());
         GameNetwork game_network = new GameNetwork(null, client);

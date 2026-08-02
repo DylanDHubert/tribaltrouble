@@ -21,11 +21,8 @@ import java.io.Serializable;
  * must be listed in {@link JsonSubTypes} with the matching enum name.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "mode", include = JsonTypeInfo.As.EXISTING_PROPERTY)
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = StandardOptions.class, name = "STANDARD"),
-        @JsonSubTypes.Type(value = TwinTotemsOptions.class, name = "TWIN_TOTEMS")
-})
-public sealed interface GameModeOptions extends Serializable permits StandardOptions, TwinTotemsOptions {
+@JsonSubTypes(@JsonSubTypes.Type(value = StandardOptions.class, name = "STANDARD"))
+public sealed interface GameModeOptions extends Serializable permits StandardOptions {
     @NonNull
     GameMode getMode();
 }

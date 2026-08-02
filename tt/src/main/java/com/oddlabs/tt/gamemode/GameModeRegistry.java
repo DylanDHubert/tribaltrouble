@@ -2,7 +2,6 @@ package com.oddlabs.tt.gamemode;
 
 import com.oddlabs.matchmaking.GameMode;
 import com.oddlabs.tt.gamemode.standard.StandardModeRules;
-import com.oddlabs.tt.gamemode.twintotems.TwinTotemsModeRules;
 import org.jspecify.annotations.NonNull;
 
 import java.util.EnumMap;
@@ -18,7 +17,6 @@ public final class GameModeRegistry {
 
     static {
         REGISTRY.put(GameMode.STANDARD, new StandardModeRules());
-        REGISTRY.put(GameMode.TWIN_TOTEMS, new TwinTotemsModeRules());
     }
 
     private GameModeRegistry() {

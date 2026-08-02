@@ -49,9 +49,7 @@ import com.oddlabs.tt.resource.WorldInfo;
 import com.oddlabs.tt.util.ServerMessageBundler;
 import com.oddlabs.tt.util.Target;
 import com.oddlabs.tt.util.Utils;
-import com.oddlabs.tt.trigger.GameOverTrigger;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.ResourceBundle;
@@ -80,7 +78,6 @@ public final class WorldViewer implements Animated, AutoCloseable {
     private final @NonNull WorldParameters world_params;
     private final @NonNull AnimationManager animation_manager_local;
     private final @NonNull Cheat cheat;
-    private @Nullable GameOverTrigger game_over_trigger;
 
     public WorldViewer(@NonNull NetworkSelector network, final @NonNull GUIRoot gui_root,
             @NonNull WorldParameters world_params, @NonNull InGameInfo ingame_info, @NonNull WorldGenerator generator,
@@ -193,14 +190,6 @@ public final class WorldViewer implements Animated, AutoCloseable {
 
     public @NonNull WorldParameters getParameters() {
         return world_params;
-    }
-
-    public void setGameOverTrigger(@Nullable GameOverTrigger game_over_trigger) {
-        this.game_over_trigger = game_over_trigger;
-    }
-
-    public @Nullable GameOverTrigger getGameOverTrigger() {
-        return game_over_trigger;
     }
 
     public @NonNull Cheat getCheat() {

@@ -31,8 +31,8 @@ import static com.oddlabs.tt.gui.Placement.BOTTOM_LEFT;
 import static com.oddlabs.tt.gui.Placement.RIGHT_MID;
 
 /**
- * Tab 1 of the create-game dialog. Renders the mode pulldown, a banner showing which preset (if any) is currently
- * applied and whether the form has drifted from it, the grid of user-saved preset cards, and the
+ * Tab 1 of the MP create-game dialog. Renders the mode pulldown (Standard only at v1), a banner showing which preset
+ * (if any) is currently applied and whether the form has drifted from it, the grid of user-saved preset cards, and the
  * {@code +Save current as preset} action card. {@link #refreshPresets} rebuilds the grid after the host saves or
  * deletes a preset; {@link #setPresetState} updates the banner.
  */
@@ -46,11 +46,9 @@ public final class ModeAndPresetsPanel extends Panel {
     private final @NonNull PresetLibrary library;
     private final @NonNull ModeAndPresetsHandler handler;
     private final @NonNull Group mode_row;
-    private final @NonNull PulldownMenu<GameMode> mode_menu;
     private final @NonNull PresetBanner banner;
     private @Nullable ScrollableGroup preset_grid;
     private @Nullable String selected_preset_id;
-    private @NonNull GameMode current_mode = GameMode.STANDARD;
 
     public ModeAndPresetsPanel(@NonNull GUIRoot gui_root, @NonNull PresetLibrary library,
             @NonNull ModeAndPresetsHandler handler) {
@@ -60,15 +58,12 @@ public final class ModeAndPresetsPanel extends Panel {
 
         mode_row = new Group();
         Label mode_label = new Label(i18n("mode_label"), Skin.getSkin().getEditFont());
-        mode_menu = new PulldownMenu<>();
+        PulldownMenu<GameMode> mode_menu = new PulldownMenu<>();
         mode_menu.addItem(new PulldownItem<>(i18n("standard_title"), GameMode.STANDARD));
-        mode_menu.addItem(new PulldownItem<>(i18n("twin_totems_title"), GameMode.TWIN_TOTEMS));
         PulldownButton<GameMode> mode_button = new PulldownButton<>(gui_root, mode_menu, 0, MODE_PULLDOWN_WIDTH);
         mode_menu.addItemChosenListener((menu, index) -> {
             GameMode mode = menu.getItem(index).getAttachment();
-            if (mode != null && mode != current_mode) {
-                current_mode = mode;
-                rebuildGrid();
+            if (mode != null) {
                 handler.modeChosen(mode);
             }
         });
@@ -87,25 +82,6 @@ public final class ModeAndPresetsPanel extends Panel {
 
         rebuildGrid();
         compileCanvas();
-    }
-
-    public @NonNull GameMode getSelectedMode() {
-        return current_mode;
-    }
-
-    /**
-     * Selects a mode in the pulldown without notifying {@link ModeAndPresetsHandler#modeChosen} (used when applying a
-     * preset that already stamps the rest of the form).
-     */
-    public void selectModeQuietly(@NonNull GameMode mode) {
-        current_mode = mode;
-        for (int i = 0; i < mode_menu.getSize(); i++) {
-            if (mode_menu.getItem(i).getAttachment() == mode) {
-                mode_menu.chooseItemSilently(i);
-                break;
-            }
-        }
-        rebuildGrid();
     }
 
     /**
@@ -128,7 +104,7 @@ public final class ModeAndPresetsPanel extends Panel {
         RadioButtonGroup preset_group = new RadioButtonGroup();
 
         List<GUIObject> cards = new ArrayList<>();
-        for (Preset preset : library.forMode(current_mode)) {
+        for (Preset preset : library.forMode(GameMode.STANDARD)) {
             boolean marked = preset.getId().equals(selected_preset_id);
             cards.add(new PresetCard(preset, CARD_WIDTH, marked, preset_group, handler::presetChosen,
                     handler::presetDeleted));
