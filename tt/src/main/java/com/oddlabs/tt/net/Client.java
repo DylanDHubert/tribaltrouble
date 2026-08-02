@@ -50,6 +50,7 @@ public final class Client implements ARMIEventBroker, GameClientInterface, Conne
     private short player_slot = -1;
     private boolean error_while_fading;
     private ConfigurationListener configuration_listener;
+    private final @NonNull PlayerColors player_colors = new PlayerColors();
 
     //	public Client(int host_id, int gametype, boolean rated, int start_speed, String map_code, int initial_unit_count, Runnable initial_action, float random_start_pos, int max_unit_count) {
     public Client(Runnable cleanup_action, @NonNull NetworkSelector network, GUI gui, int host_id,
@@ -89,8 +90,18 @@ public final class Client implements ARMIEventBroker, GameClientInterface, Conne
         return gameserver_interface;
     }
 
+    public @NonNull PlayerColors getPlayerColors() {
+        return player_colors;
+    }
+
     @Override
     public void chat(int player_slot, @Nullable String chat) {
+        PlayerColorMessage.Parsed parsed = PlayerColorMessage.tryParse(chat);
+        if (parsed != null) {
+            if (parsed.slot() == player_slot)
+                player_colors.setNetworkColor(parsed.slot(), parsed.color());
+            return;
+        }
         if (chat != null && player_slot >= 0 && player_slot < player_slots.length)
             Network.getChatHub().chat(new ChatMessage(player_slots[player_slot].getInfo().getName(), chat,
                     ChatMessage.Type.GAME_MENU));
@@ -130,7 +141,7 @@ public final class Client implements ARMIEventBroker, GameClientInterface, Conne
         this.session_id = session_id;
         getConfigurationListener().gameStarted();
         ProgressForm.setProgressForm(network, gui, new WorldStarter(network, session_id, generator, world_params,
-                player_slots, unit_infos, player_slot, ingame_info, initial_action));
+                player_slots, unit_infos, player_slot, ingame_info, initial_action, player_colors));
     }
 
     @Override

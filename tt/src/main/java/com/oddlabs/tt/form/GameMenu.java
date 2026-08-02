@@ -37,10 +37,13 @@ import com.oddlabs.tt.net.ConfigurationListener;
 import com.oddlabs.tt.net.GameNetwork;
 import com.oddlabs.tt.net.GameServerInterface;
 import com.oddlabs.tt.net.Network;
+import com.oddlabs.tt.net.PlayerColorMessage;
+import com.oddlabs.tt.net.PlayerColors;
 import com.oddlabs.tt.net.PlayerSlot;
 import com.oddlabs.tt.player.PlayerInfo;
 import com.oddlabs.tt.resource.WorldGenerator;
 import com.oddlabs.tt.util.Utils;
+import org.joml.Vector4f;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -80,6 +83,7 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
     private final PulldownButton<Void> @NonNull [] slot_buttons;
     private final PulldownButton<Void> @NonNull [] race_buttons;
     private final PulldownButton<Void> @NonNull [] team_buttons;
+    private final Label @NonNull [] player_labels;
     private final Label @NonNull [] ratings;
     private final @NonNull Label chat_info;
     private final @NonNull TextBox chat_box;
@@ -118,11 +122,12 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         team_buttons = (PulldownButton<Void>[]) new PulldownButton[player_count];
         ready_marks = new Diode[player_count];
         ratings = new Label[player_count];
+        player_labels = new Label[player_count];
         Group player_group = player_count > DEFAULT_PLAYER_COUNT ? new ScrollableGroup(170, 64) : new Group();
         GUIObject previous = null;
         for (int i = 0; i < player_count; i++) {
             previous = createPlayerPulldown(gui_root, player_group, previous, slot_buttons, race_buttons, team_buttons,
-                    ready_marks, ratings, i, player_count);
+                    ready_marks, ratings, player_labels, i, player_count);
         }
         player_group.compileCanvas();
         addChild(player_group);
@@ -164,6 +169,9 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         HorizButton info_button = new HorizButton(i18n("info"), button_width);
         addChild(info_button);
         info_button.addMouseClickListener(new InfoButtonListener());
+        HorizButton colors_button = new HorizButton(i18n("colors"), button_width);
+        addChild(colors_button);
+        colors_button.addMouseClickListener(new ColorsButtonListener());
 
         game_name_label.place();
         player_group.place(game_name_label, BOTTOM_LEFT);
@@ -172,6 +180,7 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         chat_line_group.place(chat_box, BOTTOM_LEFT);
         cancel_button.place(chat_line_group, BOTTOM_RIGHT);
         info_button.place(chat_line_group, BOTTOM_LEFT);
+        colors_button.place(info_button, RIGHT_MID);
         ready_button.place(cancel_button, LEFT_MID);
         if (local_player_slot == 0)
             start_button.place(ready_button, LEFT_MID);
@@ -371,7 +380,15 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         human_names = new_human_names;
         setReady(players[local_player_slot].isReady());
         setStartEnable(players);
+        refreshPlayerLabelColors();
         updating = false;
+    }
+
+    private void refreshPlayerLabelColors() {
+        PlayerColors player_colors = game_network.getClient().getPlayerColors();
+        for (int i = 0; i < player_labels.length; i++) {
+            player_labels[i].setColor(player_colors.getColor(i, local_player_slot));
+        }
     }
 
     private void updateRatedLabels(int @NonNull [] player_slots, int[] player_ratings, int[][] points) {
@@ -403,6 +420,7 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
             @NonNull PulldownButton<?>[] team_buttons,
             @NonNull Diode[] ready_marks,
             @NonNull Label[] ratings,
+            @NonNull Label[] player_labels,
             int index,
             int num_players) {
         PulldownMenu<Void> pulldown_menu = new PulldownMenu<>();
@@ -469,6 +487,7 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         String player_str = i18n("player", Integer.toString(index + 1));
         Label label = new Label(player_str, Skin.getSkin().getEditFont()).setColor(
                 Settings.getSettings().team_colours[index]);
+        player_labels[index] = label;
         group.addChild(label);
         label.place(pulldown_button, LEFT_MID);
 
@@ -508,6 +527,8 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
     @Override
     public void chat(@NonNull ChatMessage message) {
         if (message.type() != ChatMessage.Type.GAME_MENU)
+            return;
+        if (PlayerColorMessage.isColorMessage(message.message()))
             return;
         if (!chat_box.isEmpty())
             chat_box.append("\n");
@@ -559,6 +580,27 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         @Override
         public void mouseClicked(@NonNull MouseButton button, int x, int y, int clicks) {
             gui_root.addModalForm(new GameInfoForm(game));
+        }
+    }
+
+    private final class ColorsButtonListener implements MouseClickListener {
+        @Override
+        public void mouseClicked(@NonNull MouseButton button, int x, int y, int clicks) {
+            gui_root.addModalForm(new PlayerColorPickerForm(gui_root, local_player_slot,
+                    GameMenu.this::refreshPlayerLabelColors, GameMenu.this::syncLocalColorOverNetwork));
+        }
+    }
+
+    /**
+     * Best-effort broadcast of the local player's color to other lobby members over the existing chat channel.
+     * Never allowed to throw: if the send fails for any reason (e.g. connection issue), the color simply stays
+     * local and the lobby keeps working normally.
+     */
+    private void syncLocalColorOverNetwork(@NonNull Vector4f color) {
+        try {
+            game_network.getClient().getServerInterface().chat(PlayerColorMessage.format(local_player_slot, color));
+        } catch (Exception e) {
+            IO.println("Failed to sync player color over the network: " + e);
         }
     }
 

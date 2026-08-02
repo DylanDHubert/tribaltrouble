@@ -34,10 +34,11 @@ final class WorldStarter implements LoadCallback {
     private final WorldParameters world_params;
     private final @Nullable WorldInitAction initial_action;
     private final int session_id;
+    private final @Nullable PlayerColors player_colors;
 
     WorldStarter(NetworkSelector network, int session_id, WorldGenerator generator, WorldParameters world_params,
             PlayerSlot[] player_slots, UnitInfo[] unit_infos, short player_slot, InGameInfo ingame_info,
-            @Nullable WorldInitAction initial_action) {
+            @Nullable WorldInitAction initial_action, @Nullable PlayerColors player_colors) {
         this.initial_action = initial_action;
         this.session_id = session_id;
         this.world_params = world_params;
@@ -47,6 +48,7 @@ final class WorldStarter implements LoadCallback {
         this.player_slot = player_slot;
         this.ingame_info = ingame_info;
         this.network = network;
+        this.player_colors = player_colors;
     }
 
     @Override
@@ -67,7 +69,7 @@ final class WorldStarter implements LoadCallback {
         PlayerSlot[] player_slots = player_slot_list.toArray(new PlayerSlot[0]);
         UnitInfo[] corrected_unit_infos = unit_info_list.toArray(new UnitInfo[0]);
         WorldViewer viewer = new WorldViewer(network, gui_root, world_params, ingame_info, generator, player_slots,
-                corrected_unit_infos, corrected_player_slot, new SessionID(session_id));
+                corrected_unit_infos, corrected_player_slot, new SessionID(session_id), player_colors);
         GameModeRegistry.get(viewer.getWorld().getGameMode()).onGameStart(viewer);
         if (initial_action != null)
             initial_action.run(viewer);

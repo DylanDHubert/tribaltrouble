@@ -25,8 +25,6 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Random;
 
 public final class World {
@@ -75,9 +73,23 @@ public final class World {
             @NonNull NotificationListener notification_listener, @NonNull WorldParameters world_params,
             @NonNull WorldInfo world_info, Landscape.@NonNull TerrainType terrain,
             @NonNull PlayerInfo @NonNull [] player_infos, @NonNull FogInfo fog) {
+        return newWorld(audio_implementation, landscape_resources, races_resources, notification_listener,
+                world_params, world_info, terrain, player_infos, fog, null);
+    }
+
+    /**
+     * @param player_colors  colors parallel to {@code player_infos}, or null to fall back to the local default
+     *         palette in slot order (used when no per-player color info is available, e.g. menu background/replay)
+     */
+    public static @NonNull World newWorld(@NonNull AudioImplementation audio_implementation,
+            @NonNull LandscapeResources landscape_resources, @Nullable RacesResources races_resources,
+            @NonNull NotificationListener notification_listener, @NonNull WorldParameters world_params,
+            @NonNull WorldInfo world_info, Landscape.@NonNull TerrainType terrain,
+            @NonNull PlayerInfo @NonNull [] player_infos, @NonNull FogInfo fog,
+            @Nullable Vector4fc @Nullable [] player_colors) {
         ProgressForm.progress();
         World world = new World(audio_implementation, landscape_resources, races_resources, notification_listener,
-                world_params, world_info, terrain, player_infos, fog);
+                world_params, world_info, terrain, player_infos, fog, player_colors);
         ProgressForm.progress();
         ProgressForm.progress(1 / 5f);
         ProgressForm.progress();
@@ -168,7 +180,7 @@ public final class World {
             @Nullable RacesResources races_resources, @NonNull NotificationListener notification_listener,
             @NonNull WorldParameters world_params, @NonNull WorldInfo world_info,
             Landscape.@NonNull TerrainType terrain, @NonNull PlayerInfo @NonNull [] player_infos,
-            @NonNull FogInfo fog) {
+            @NonNull FogInfo fog, @Nullable Vector4fc @Nullable [] player_colors) {
         IO.println(
                 "****************** Generating landscape at tick " + LocalEventQueue.getQueue().getHighPrecisionManager().getTick() + " ********************");
         this.fog = fog;
@@ -191,9 +203,11 @@ public final class World {
         animation_manager_real_time = new AnimationManager();
         random = new Random(42);
 
-        Iterator<Vector4fc> eachColor = Arrays.asList((Vector4fc[]) Settings.getSettings().team_colours).iterator();
-        players = Arrays.stream(player_infos).map(info -> new Player(this, info, eachColor.next())).toArray(
-                Player[]::new);
+        players = new Player[player_infos.length];
+        for (int i = 0; i < player_infos.length; i++) {
+            Vector4fc color = player_colors != null ? player_colors[i] : Settings.getSettings().team_colours[i];
+            players[i] = new Player(this, player_infos[i], color);
+        }
 
         long time_stop = System.currentTimeMillis();
         IO.println(

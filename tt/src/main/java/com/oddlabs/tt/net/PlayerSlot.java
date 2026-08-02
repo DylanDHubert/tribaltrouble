@@ -62,7 +62,7 @@ public final class PlayerSlot implements Serializable {
         this.ready = ready;
     }
 
-    int getSlot() {
+    public int getSlot() {
         return slot;
     }
 

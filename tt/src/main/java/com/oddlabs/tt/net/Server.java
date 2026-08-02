@@ -17,6 +17,7 @@ import com.oddlabs.tt.model.RacesResources;
 import com.oddlabs.tt.player.PlayerInfo;
 import com.oddlabs.tt.resource.WorldGenerator;
 import com.oddlabs.tt.util.Utils;
+import org.joml.Vector4f;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -37,6 +38,9 @@ public final class Server implements ConnectionListenerInterface {
     private static final int JOIN_DEFAULT_NONE = -1;
 
     private final PlayerSlot @NonNull [] players;
+    // Personal colors received from clients over the lobby chat channel (see PlayerColorMessage), replayed to
+    // late joiners. Not part of PlayerSlot's wire format, so older/mismatched clients are unaffected.
+    private final Vector4f @NonNull [] slot_colors;
     // Per-slot race/team a joining human inherits, seeded in-process from the host's create-dialog roster. Slots left
     // at JOIN_DEFAULT_NONE fall back to the legacy random race / slot-derived team.
     private final int @NonNull [] join_default_race;
@@ -74,6 +78,7 @@ public final class Server implements ConnectionListenerInterface {
         join_default_team = new int[player_count];
         Arrays.fill(join_default_race, JOIN_DEFAULT_NONE);
         Arrays.fill(join_default_team, JOIN_DEFAULT_NONE);
+        slot_colors = new Vector4f[player_count];
     }
 
     /**
@@ -196,7 +201,7 @@ public final class Server implements ConnectionListenerInterface {
         ClientConnection player_client = locateClientForSlot(client_slot);
         if (player_client != null)
             disconnectClient(player_client);
-        broadcastPlayers(true);
+        broadcastPlayers();
     }
 
     private boolean canControlSlot(@NonNull PlayerSlot client_slot, int slot) {
@@ -230,32 +235,14 @@ public final class Server implements ConnectionListenerInterface {
             name = player_slot.getInfo().getName();
         }
         PlayerInfo player_info = new PlayerInfo(team, race, name);
-        boolean reset_ready = player_slot.getInfo() == null || type != player_slot.getType()
-                || ai_difficulty != player_slot.getAIDifficulty() || !player_info.equals(player_slot.getInfo());
         player_slot.setType(type);
         player_slot.setAIDifficulty(ai_difficulty);
         player_slot.setInfo(player_info);
         player_slot.setReady(type != PlayerSlot.HUMAN || ready);
-        broadcastPlayers(reset_ready);
+        broadcastPlayers();
     }
 
-    private void resetReady() {
-        int num_humans = 0;
-        for (PlayerSlot player_slot : players) {
-            if (player_slot.getType() == PlayerSlot.HUMAN)
-                num_humans++;
-        }
-        if (num_humans > 1) {
-            for (PlayerSlot player_slot : players) {
-                if (player_slot.getType() == PlayerSlot.HUMAN)
-                    player_slot.setReady(false);
-            }
-        }
-    }
-
-    private void broadcastPlayers(boolean reset_ready) {
-        if (reset_ready)
-            resetReady();
+    private void broadcastPlayers() {
         Iterator<ClientConnection> it = getClientIterator();
         while (it.hasNext()) {
             ClientConnection client = it.next();
@@ -264,10 +251,27 @@ public final class Server implements ConnectionListenerInterface {
     }
 
     public void chat(@NonNull PlayerSlot player_slot, String chat) {
+        PlayerColorMessage.Parsed parsed = PlayerColorMessage.tryParse(chat);
+        if (parsed != null && parsed.slot() == player_slot.getSlot() && parsed.slot() < slot_colors.length) {
+            slot_colors[parsed.slot()] = new Vector4f(parsed.color());
+        }
         Iterator<ClientConnection> it = getClientIterator();
         while (it.hasNext()) {
             ClientConnection client = it.next();
             client.getClientInterface().chat(player_slot.getSlot(), chat);
+        }
+    }
+
+    /**
+     * Replays previously received personal colors to a single newly-connected client, so it catches up on colors
+     * that were set before it joined. Best-effort: if a peer never sent one, its slot is simply skipped and stays
+     * on defaults.
+     */
+    private void replayColorsTo(@NonNull ClientConnection client) {
+        for (int i = 0; i < slot_colors.length; i++) {
+            if (slot_colors[i] != null) {
+                client.getClientInterface().chat(i, PlayerColorMessage.format(i, slot_colors[i]));
+            }
         }
     }
 
@@ -341,6 +345,7 @@ public final class Server implements ConnectionListenerInterface {
         connection_to_client.put(conn, client_conn);
         client_conn.getClientInterface().setWorldGeneratorAndPlayerSlot(game, generator, available_slot,
                 players.length);
-        broadcastPlayers(true);
+        broadcastPlayers();
+        replayColorsTo(client_conn);
     }
 }

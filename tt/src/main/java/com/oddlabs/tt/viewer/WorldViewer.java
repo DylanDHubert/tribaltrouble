@@ -28,6 +28,7 @@ import com.oddlabs.tt.model.Selectable;
 import com.oddlabs.tt.model.Unit;
 import com.oddlabs.tt.net.DistributableTable;
 import com.oddlabs.tt.net.PeerHub;
+import com.oddlabs.tt.net.PlayerColors;
 import com.oddlabs.tt.net.PlayerSlot;
 import com.oddlabs.tt.player.AI;
 import com.oddlabs.tt.player.AdvancedAI;
@@ -49,7 +50,9 @@ import com.oddlabs.tt.resource.WorldInfo;
 import com.oddlabs.tt.util.ServerMessageBundler;
 import com.oddlabs.tt.util.Target;
 import com.oddlabs.tt.util.Utils;
+import org.joml.Vector4fc;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.ResourceBundle;
@@ -82,6 +85,19 @@ public final class WorldViewer implements Animated, AutoCloseable {
     public WorldViewer(@NonNull NetworkSelector network, final @NonNull GUIRoot gui_root,
             @NonNull WorldParameters world_params, @NonNull InGameInfo ingame_info, @NonNull WorldGenerator generator,
             PlayerSlot @NonNull [] player_slots, UnitInfo[] unit_infos, short player_slot, SessionID session_id) {
+        this(network, gui_root, world_params, ingame_info, generator, player_slots, unit_infos, player_slot,
+                session_id, null);
+    }
+
+    /**
+     * @param player_colors  colors received over the network for the lobby this world was started from, or null if
+     *         unavailable (e.g. spectating/replay); falls back to local defaults per slot when null or when a
+     *         given player's color was never received
+     */
+    public WorldViewer(@NonNull NetworkSelector network, final @NonNull GUIRoot gui_root,
+            @NonNull WorldParameters world_params, @NonNull InGameInfo ingame_info, @NonNull WorldGenerator generator,
+            PlayerSlot @NonNull [] player_slots, UnitInfo[] unit_infos, short player_slot, SessionID session_id,
+            @Nullable PlayerColors player_colors) {
         this.world_params = world_params;
         this.ingame_info = ingame_info;
         this.network = network;
@@ -146,8 +162,9 @@ public final class WorldViewer implements Animated, AutoCloseable {
         PlayerInfo[] player_infos = Arrays.stream(player_slots).map(PlayerSlot::getInfo).toArray(PlayerInfo[]::new);
         WorldInfo world_info = generator.generate(player_infos.length, world_params.getInitialUnitCount(),
                 ingame_info.getRandomStartPosition());
+        Vector4fc[] resolved_colors = resolveColors(player_slots, player_slot, player_colors);
         this.world = World.newWorld(audio_impl, landscape_resources, races_resources, listener, world_params,
-                world_info, generator.getTerrainType(), player_infos, worldFog);
+                world_info, generator.getTerrainType(), player_infos, worldFog, resolved_colors);
         this.local_player = world.getPlayers()[player_slot];
         this.selection = new Selection(local_player);
         landscape_renderer = new LandscapeRenderer(world, world_info, animation_manager_local);
@@ -168,6 +185,23 @@ public final class WorldViewer implements Animated, AutoCloseable {
         initPlayers(world_info.starting_locations(), player_slots, world.getPlayers(), unit_infos,
                 world_params.getInitialGameSpeed());
         LocalEventQueue.getQueue().getManager().registerAnimation(this);
+    }
+
+    /**
+     * Resolves each player's color, preferring one received over the network for their original lobby slot, falling
+     * back to local defaults. Returns null (letting {@code World} use its own fallback) if no registry is available.
+     */
+    private static Vector4fc @Nullable [] resolveColors(PlayerSlot @NonNull [] player_slots, short player_slot,
+            @Nullable PlayerColors player_colors) {
+        if (player_colors == null) {
+            return null;
+        }
+        int local_original_slot = player_slots[player_slot].getSlot();
+        Vector4fc[] resolved = new Vector4fc[player_slots.length];
+        for (int i = 0; i < player_slots.length; i++) {
+            resolved[i] = player_colors.getColor(player_slots[i].getSlot(), local_original_slot);
+        }
+        return resolved;
     }
 
     public @NonNull AnimationManager getAnimationManagerLocal() {
