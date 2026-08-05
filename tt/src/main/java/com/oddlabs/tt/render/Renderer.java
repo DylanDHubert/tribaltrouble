@@ -45,6 +45,11 @@ import com.oddlabs.tt.util.OsPlatform;
 import com.oddlabs.tt.util.StatCounter;
 import com.oddlabs.tt.util.Utils;
 import com.oddlabs.tt.vbo.VBO;
+import com.oddlabs.tt.vault.VaultCatalog;
+import com.oddlabs.tt.vault.VaultController;
+import com.oddlabs.tt.vault.VaultDelegate;
+import com.oddlabs.tt.vault.VaultForm;
+import com.oddlabs.tt.vault.VaultRenderer;
 import com.oddlabs.tt.viewer.AmbientAudio;
 import com.oddlabs.tt.viewer.Cheat;
 import com.oddlabs.tt.viewer.Selection;
@@ -647,6 +652,140 @@ public final class Renderer implements AutoCloseable {
             LocalEventQueue.getQueue().getDeterministic().setEnabled(true);
             Settings.getSettings().save();
         } finally {
+            cleanup();
+        }
+    }
+
+    /**
+     * SPRITE VAULT TOOL — SAME BOOTSTRAP AS THE GAME, WITHOUT MENU ISLAND / STEAM FLOW.
+     */
+    public void runVault(@NonNull String @NonNull... args) throws IOException {
+        Instant start_time = Instant.now();
+        logger.info("CWD: " + System.getProperty("user.dir"));
+        boolean first_frame = true;
+        GamePaths paths = setupPaths();
+        Path game_dir = paths.dataDir();
+        logger.info("********** Running Vault **********");
+        logger.info("version: " + BuildInfo.FULL_VERSION);
+        logger.info("game dir: " + game_dir);
+        logger.info("logs dir: " + paths.logDir());
+
+        boolean silent = false;
+        for (String arg : args) {
+            if ("--silent".equals(arg))
+                silent = true;
+            else
+                throw new IllegalArgumentException("Unknown command line flag: " + arg);
+        }
+
+        Settings settings = new Settings();
+        settings.load(game_dir);
+
+        Path event_logs_dir = paths.logDir();
+        Path event_log_dir = event_logs_dir.resolve("vault-" + System.currentTimeMillis());
+        if (settings.save_event_log) {
+            setupLogging(event_log_dir, silent);
+            LocalEventQueue.getQueue().setEventsLogged(event_log_dir.resolve(com.oddlabs.util.Utils.EVENT_LOG));
+        }
+        Deterministic deterministic = LocalEventQueue.getQueue().getDeterministic();
+        game_dir = deterministic.log(game_dir);
+        event_log_dir = deterministic.log(event_log_dir);
+        settings = deterministic.log(settings);
+        String default_language = deterministic.log(Locale.getDefault().getLanguage());
+        String language = settings.language;
+        if (language.equals("default"))
+            language = default_language;
+        if (!Languages.hasLanguage(language))
+            language = "en";
+        Locale.setDefault(Locale.of(language));
+        Settings.setSettings(settings);
+        Globals.gamespeed = settings.gamespeed;
+        boolean crashed = settings.crashed;
+        NetworkSelector network = new NetworkSelector(LocalEventQueue.getQueue().getDeterministic(),
+                LocalEventQueue.getQueue()::getMillis);
+        initNetwork(network);
+        Renderer.getLocalInput().settings(game_dir, event_log_dir, settings);
+        try {
+            initNative(crashed);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed initializing natives", e);
+        }
+        window.setTitle("Tribal Trouble — Vault");
+
+        GlobalsInit.init();
+        localInput.init();
+        GUI gui = new GUI();
+
+        Duration startup_time_init = Duration.between(start_time, Instant.now());
+        logger.info("Vault init done after " + startup_time_init);
+        ambient = new AmbientAudio(AudioManager.getManager());
+
+        VaultCatalog catalog = VaultCatalog.load();
+        VaultController controller = new VaultController(catalog);
+        VaultRenderer vaultRenderer = new VaultRenderer(controller);
+        GUIRoot gui_root = gui.getGUIRoot();
+        gui_root.pushDelegate(new VaultDelegate(gui_root, controller));
+        gui.setRenderer(vaultRenderer);
+        VaultForm form = new VaultForm(gui_root, controller);
+        controller.setOnChanged(form::refresh);
+        gui_root.addChild(form);
+        form.refresh();
+
+        boolean reset_keyboard = false;
+        boolean wasActive = false;
+        try {
+            while (!finished) {
+                window.pollEvents();
+                boolean isActive = window.isActive();
+                if (isActive && !wasActive) {
+                    if (window.isIconified()) window.restore();
+                    if (!window.isVisible()) window.show();
+                    window.focus();
+                }
+                wasActive = isActive;
+
+                runGameLoop(network, gui);
+
+                if (isActive) {
+                    if (reset_keyboard) {
+                        reset_keyboard = false;
+                        Renderer.getLocalInput().resetKeyboard();
+                    }
+                } else {
+                    reset_keyboard = true;
+                }
+
+                if (!window.isIconified()) {
+                    if (!first_frame) {
+                        window.update();
+                    }
+                    if (window.wasResized()) {
+                        int width = window.getWidth();
+                        int height = window.getHeight();
+                        Settings.getSettings().view_width = window.getLogicalWidth();
+                        Settings.getSettings().view_height = window.getLogicalHeight();
+                        GL11.glViewport(0, 0, width, height);
+                        initGL();
+                        gui.getGUIRoot().displayChanged(width, height);
+                    }
+                    display(gui);
+                    if (first_frame) {
+                        Duration startup_time = Duration.between(start_time, Instant.now());
+                        logger.info("Vault first frame rendered after " + startup_time);
+                        first_frame = false;
+                    }
+                } else {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(10);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException("woken", e);
+                    }
+                }
+            }
+            LocalEventQueue.getQueue().getDeterministic().setEnabled(true);
+            Settings.getSettings().save();
+        } finally {
+            controller.close();
             cleanup();
         }
     }

@@ -30,6 +30,7 @@ public final class SpriteList implements AutoCloseable {
     private final @NonNull Sprite @NonNull [] sprites;
     private final AnimationInfo.@NonNull AnimationType @NonNull [] type_array;
     private final @NonNull String @NonNull [] animation_names;
+    private final float @NonNull [] wpc_array;
 
     private final @NonNull ShortVBO indices;
     private final @NonNull FloatVBO vertices_and_normals;
@@ -46,6 +47,7 @@ public final class SpriteList implements AutoCloseable {
         this.bounds = new BoundingBox[]{new BoundingBox()};
         this.type_array = new AnimationInfo.AnimationType[]{AnimationInfo.AnimationType.LOOP};
         this.animation_names = new String[]{"default"};
+        this.wpc_array = new float[]{1f};
 
         float[] quad_vertices = {-0.5f, -0.5f, 0f, 0.5f, -0.5f, 0f, 0.5f, 0.5f, 0f, -0.5f, 0.5f, 0f};
         float[] quad_normals = {0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1};
@@ -101,11 +103,13 @@ public final class SpriteList implements AutoCloseable {
                 vert_and_normal_buffer_size));
 
         float[] cpw_array = new float[animation_infos.length];
+        wpc_array = new float[animation_infos.length];
         type_array = new AnimationInfo.AnimationType[animation_infos.length];
         animation_names = new String[animation_infos.length];
         int[] animation_length_array = new int[animation_infos.length];
         for (int i = 0; i < animation_infos.length; i++) {
-            cpw_array[i] = 1f / animation_infos[i].getWPC();
+            wpc_array[i] = animation_infos[i].getWPC();
+            cpw_array[i] = 1f / wpc_array[i];
             type_array[i] = animation_infos[i].getType();
             animation_names[i] = animation_infos[i].getName();
             animation_length_array[i] = animation_infos[i].getFrames().length;
@@ -202,6 +206,12 @@ public final class SpriteList implements AutoCloseable {
 
     public @NonNull String @NonNull [] getAnimationNames() {
         return animation_names;
+    }
+
+    public float getWPC(int animation) {
+        if (animation < 0 || animation >= wpc_array.length)
+            return 1f;
+        return wpc_array[animation];
     }
 
     public int getAnimationIndex(@NonNull String name) {

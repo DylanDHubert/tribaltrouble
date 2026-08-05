@@ -79,6 +79,15 @@ tasks.run.configure {
     classpath = files(layout.buildDirectory) + sourceSets.main.get().runtimeClasspath
 }
 
+val vault by tasks.registering(JavaExec::class) {
+    group = "application"
+    description = "Launch the Tribal Trouble sprite Vault browser"
+    classpath = files(layout.buildDirectory) + sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.oddlabs.tt.vault.VaultMain")
+    jvmArgs = application.applicationDefaultJvmArgs.toList()
+    dependsOn(tasks.classes, ":assets:processResources")
+}
+
 // --- Distribution & Packaging ---
 
 val dist = layout.buildDirectory.dir("dist")

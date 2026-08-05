@@ -69,6 +69,10 @@ public final class GUI implements Animated {
         return current_root;
     }
 
+    public void setRenderer(@Nullable UIRenderer renderer) {
+        this.renderer = renderer;
+    }
+
     @Nullable
     Fade getFade() {
         return fade;
