@@ -36,9 +36,9 @@ public final class PlayerColorPickerForm extends Form {
     }
 
     /**
-     * @param on_color_changed  called whenever the local color changes, to refresh the lobby UI immediately
-     * @param on_ok_network_sync  called once with the final color when OK is pressed, to (best-effort) broadcast
-     *         it to other players over the network; may be null if network sync isn't available
+     * @param on_color_changed   called whenever the local color changes, to refresh the lobby UI immediately
+     * @param on_ok_network_sync called once with the final color when OK is pressed, to (best-effort) broadcast
+     *                           it to other players over the network; may be null if network sync isn't available
      */
     public PlayerColorPickerForm(@NonNull GUIRoot gui_root, int player_slot, @NonNull Runnable on_color_changed,
             @Nullable Consumer<Vector4f> on_ok_network_sync) {

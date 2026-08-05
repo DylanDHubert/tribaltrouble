@@ -36,11 +36,9 @@ public final class KeyPointDetector {
     private static final float BEACH_MAX_ABOVE_SEA = 2.5f;
     private static final float EPS = 1e-5f;
 
-    private static final Comparator<Candidate> CANDIDATE_ORDER = Comparator
-            .comparingDouble((Candidate c) -> c.score).reversed()
-            .thenComparingInt(c -> c.gridX)
-            .thenComparingInt(c -> c.gridY)
-            .thenComparing(c -> c.type);
+    private static final Comparator<Candidate> CANDIDATE_ORDER = Comparator.comparingDouble((
+            Candidate c) -> c.score).reversed().thenComparingInt(c -> c.gridX).thenComparingInt(
+                    c -> c.gridY).thenComparing(c -> c.type);
 
     private KeyPointDetector() {
     }

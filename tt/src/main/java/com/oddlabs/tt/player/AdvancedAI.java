@@ -293,9 +293,8 @@ public final class AdvancedAI extends AI {
 
         // ROTATE TOWER ORIGINS ACROSS BASES SO THEY SPREAD WITH EXPANSION
         int base_index = have / 2 % getQuarters().length;
-        Building origin = have % 2 == 0
-                ? (Building) getQuarters()[base_index]
-                : (Building) getArmory()[Math.min(base_index, getArmory().length - 1)];
+        Building origin = have % 2 == 0 ? (Building) getQuarters()[base_index] : (Building) getArmory()[Math.min(
+                base_index, getArmory().length - 1)];
         int ox = origin.getGridX();
         int oy = origin.getGridY();
         int center = getOwner().getWorld().getHeightMap().getGridUnitsPerWorld() / 2;
@@ -551,9 +550,7 @@ public final class AdvancedAI extends AI {
         float py = dx * inv;
         float along = 25f + base_index * 18f;
         float side = ((base_index % 2 == 0) ? 1f : -1f) * (15f + base_index * 8f);
-        return new int[]{
-                (int) (ox + dx * inv * along + px * side),
-                (int) (oy + dy * inv * along + py * side)
+        return new int[]{(int) (ox + dx * inv * along + px * side), (int) (oy + dy * inv * along + py * side)
         };
     }
 

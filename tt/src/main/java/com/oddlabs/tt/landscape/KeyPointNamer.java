@@ -21,60 +21,37 @@ import java.util.Set;
  */
 public final class KeyPointNamer {
 
-    private static final String[] VIKING_STARTS = {
-            "Bal", "Bar", "Bel", "Bjor", "Bor", "Bran", "Bro", "Dag", "Eld", "Fal", "Fen",
-            "Fjor", "Fol", "Gar", "Gor", "Gud", "Hal", "Har", "Hol", "Ing", "Karl", "Kel",
-            "Knut", "Lod", "Ol", "Orm", "Rag", "Rol", "Sig", "Skal", "Skar", "Sten", "Stor",
-            "Sve", "Tor", "Ulf", "Val", "Var", "Vid",
+    private static final String[] VIKING_STARTS = {"Bal", "Bar", "Bel", "Bjor", "Bor", "Bran", "Bro", "Dag", "Eld", "Fal", "Fen", "Fjor", "Fol", "Gar", "Gor", "Gud", "Hal", "Har", "Hol", "Ing", "Karl", "Kel", "Knut", "Lod", "Ol", "Orm", "Rag", "Rol", "Sig", "Skal", "Skar", "Sten", "Stor", "Sve", "Tor", "Ulf", "Val", "Var", "Vid",
     };
-    private static final String[] VIKING_MIDDLES = {
-            "a", "e", "o", "ar", "or", "an", "en", "ol", "al", "el", "in", "ing", "orn",
-            "old", "und", "vald", "rik", "sten", "gard", "vik", "holm", "dal",
+    private static final String[] VIKING_MIDDLES = {"a", "e", "o", "ar", "or", "an", "en", "ol", "al", "el", "in", "ing", "orn", "old", "und", "vald", "rik", "sten", "gard", "vik", "holm", "dal",
     };
-    private static final String[] VIKING_ENDS = {
-            "a", "ar", "en", "er", "in", "o", "or", "rik", "vald", "vik", "holm", "gard",
-            "dal", "lund", "mark", "fjord", "havn", "fell",
+    private static final String[] VIKING_ENDS = {"a", "ar", "en", "er", "in", "o", "or", "rik", "vald", "vik", "holm", "gard", "dal", "lund", "mark", "fjord", "havn", "fell",
     };
 
-    private static final String[] NATIVE_STARTS = {
-            "Aka", "Ama", "Ana", "Aro", "Awa", "Eko", "Ema", "Haka", "Hana", "Heko", "Ika",
-            "Ina", "Kala", "Kama", "Kana", "Karo", "Kela", "Kena", "Kora", "Laka", "Loma",
-            "Maka", "Mala", "Mana", "Meko", "Mora", "Naka", "Nala", "Noma", "Paka", "Pala",
-            "Raka", "Saka", "Sela", "Taka", "Tala", "Toma", "Waka", "Yana", "Zala",
+    private static final String[] NATIVE_STARTS = {"Aka", "Ama", "Ana", "Aro", "Awa", "Eko", "Ema", "Haka", "Hana", "Heko", "Ika", "Ina", "Kala", "Kama", "Kana", "Karo", "Kela", "Kena", "Kora", "Laka", "Loma", "Maka", "Mala", "Mana", "Meko", "Mora", "Naka", "Nala", "Noma", "Paka", "Pala", "Raka", "Saka", "Sela", "Taka", "Tala", "Toma", "Waka", "Yana", "Zala",
     };
-    private static final String[] NATIVE_MIDDLES = {
-            "hana", "lani", "moro", "naki", "tawa", "kira", "loma", "sena", "wari", "nalo",
-            "meka", "tari", "kano", "mali", "raka", "wena", "soro", "pana", "kela", "nari",
-            "holo", "mira", "kowa", "sala", "maku", "talo", "numa", "yari", "bena", "kumi",
+    private static final String[] NATIVE_MIDDLES = {"hana", "lani", "moro", "naki", "tawa", "kira", "loma", "sena", "wari", "nalo", "meka", "tari", "kano", "mali", "raka", "wena", "soro", "pana", "kela", "nari", "holo", "mira", "kowa", "sala", "maku", "talo", "numa", "yari", "bena", "kumi",
     };
-    private static final String[] NATIVE_ENDS = {
-            "na", "ra", "ka", "la", "ta", "ma", "wa", "sha", "sa", "ri", "ni", "li", "lo",
-            "mo", "ko", "tu", "ya", "we", "no", "ho",
+    private static final String[] NATIVE_ENDS = {"na", "ra", "ka", "la", "ta", "ma", "wa", "sha", "sa", "ri", "ni", "li", "lo", "mo", "ko", "tu", "ya", "we", "no", "ho",
     };
 
     private static final String[] VIKING_PEAKS = {"Peak", "Crag", "Fell"};
     private static final String[] VIKING_VALLEYS = {"Vale", "Dell", "Fen"};
     private static final String[] VIKING_LAKES = {"Lake", "Tarn", "Loch"};
 
-    private static final String[] NATIVE_PEAKS = {
-            "Butte", "Mesa", "Tor", "Knoll", "Rise", "Crown", "Spire", "Bluff",
+    private static final String[] NATIVE_PEAKS = {"Butte", "Mesa", "Tor", "Knoll", "Rise", "Crown", "Spire", "Bluff",
     };
-    private static final String[] NATIVE_VALLEYS = {
-            "Basin", "Hollow", "Glade", "Glen", "Bottom", "Wash", "Fold", "Dell",
+    private static final String[] NATIVE_VALLEYS = {"Basin", "Hollow", "Glade", "Glen", "Bottom", "Wash", "Fold", "Dell",
     };
-    private static final String[] NATIVE_LAKES = {
-            "Lagoon", "Pool", "Oasis", "Mere", "Water", "Wetland", "Fen", "Billabong",
+    private static final String[] NATIVE_LAKES = {"Lagoon", "Pool", "Oasis", "Mere", "Water", "Wetland", "Fen", "Billabong",
     };
-    private static final String[] BEACHES = {
-            "Lagoon", "Inlet", "Reef", "Shoal", "Cove", "Flats", "Spit", "Bight",
+    private static final String[] BEACHES = {"Lagoon", "Inlet", "Reef", "Shoal", "Cove", "Flats", "Spit", "Bight",
     };
 
     // Forest landmark words were not in the supplied lists, so these complete the five types.
-    private static final String[] VIKING_FORESTS = {
-            "Holt", "Skog", "Lund", "Wald", "Wood", "Forest",
+    private static final String[] VIKING_FORESTS = {"Holt", "Skog", "Lund", "Wald", "Wood", "Forest",
     };
-    private static final String[] NATIVE_FORESTS = {
-            "Grove", "Woods", "Thicket", "Wilds", "Timber", "Forest",
+    private static final String[] NATIVE_FORESTS = {"Grove", "Woods", "Thicket", "Wilds", "Timber", "Forest",
     };
 
     private static final int MAX_UNIQUE_ATTEMPTS = 32;
@@ -91,10 +68,8 @@ public final class KeyPointNamer {
         for (int i = 0; i < order.length; i++) {
             order[i] = i;
         }
-        Arrays.sort(order, Comparator
-                .comparingDouble((Integer i) -> points.get(i).worldX())
-                .thenComparingDouble(i -> points.get(i).worldY())
-                .thenComparingInt(i -> points.get(i).type().ordinal()));
+        Arrays.sort(order, Comparator.comparingDouble((Integer i) -> points.get(i).worldX()).thenComparingDouble(
+                i -> points.get(i).worldY()).thenComparingInt(i -> points.get(i).type().ordinal()));
 
         String[] names = new String[points.size()];
         Set<String> used = new HashSet<>();

@@ -78,8 +78,9 @@ public final class World {
     }
 
     /**
-     * @param player_colors  colors parallel to {@code player_infos}, or null to fall back to the local default
-     *         palette in slot order (used when no per-player color info is available, e.g. menu background/replay)
+     * @param player_colors colors parallel to {@code player_infos}, or null to fall back to the local default
+     *                      palette in slot order (used when no per-player color info is available, e.g. menu
+     *                      background/replay)
      */
     public static @NonNull World newWorld(@NonNull AudioImplementation audio_implementation,
             @NonNull LandscapeResources landscape_resources, @Nullable RacesResources races_resources,

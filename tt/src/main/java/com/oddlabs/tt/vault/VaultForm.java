@@ -148,12 +148,11 @@ public final class VaultForm extends Form {
         updatingUi = true;
         try {
             VaultEntry entry = controller.getCurrentEntry();
-            spriteLabel.set(entry != null
-                    ? (controller.getEntryIndex() + 1) + "/" + controller.getCatalog().size() + "  " + entry.displayName()
-                    : "(none)");
-            metaLabel.set("LOD " + (controller.getLodIndex() + 1) + "/" + Math.max(1, controller.getNumLods())
-                    + "   Tex " + (controller.getTexIndex() + 1) + "/" + Math.max(1, controller.getNumTextures())
-                    + (entry != null ? "   scale " + entry.scale() : ""));
+            spriteLabel.set(
+                    entry != null ? (controller.getEntryIndex() + 1) + "/" + controller.getCatalog().size() + "  " + entry.displayName() : "(none)");
+            metaLabel.set("LOD " + (controller.getLodIndex() + 1) + "/" + Math.max(1,
+                    controller.getNumLods()) + "   Tex " + (controller.getTexIndex() + 1) + "/" + Math.max(1,
+                            controller.getNumTextures()) + (entry != null ? "   scale " + entry.scale() : ""));
             String status = controller.getStatusMessage();
             statusLabel.set(status != null ? status : entry != null ? entry.binspritePath() : "");
 

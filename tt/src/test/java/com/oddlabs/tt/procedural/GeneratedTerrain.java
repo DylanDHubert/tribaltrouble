@@ -47,8 +47,8 @@ public final class GeneratedTerrain {
         int gridSize = metersPerWorld / 2;
         int heightScale = heightScale(metersPerWorld);
 
-        Channel height = new Mountain(gridSize, Utils.powerOf2Log2(gridSize) - 6, 0.5f, seed)
-                .toChannel().multiply(0.67f);
+        Channel height = new Mountain(gridSize, Utils.powerOf2Log2(gridSize) - 6, 0.5f, seed).toChannel().multiply(
+                0.67f);
 
         Voronoi voronoi = new Voronoi(gridSize, 4, 4, 1, 1f, seed);
         height.channelAdd(voronoi.getDistance(-1f, 1f, 0f).brightness(1.5f).multiply(0.33f));
@@ -140,10 +140,8 @@ public final class GeneratedTerrain {
                 ranked.add(new float[]{vegetation.getPixel(x, y), x, y});
             }
         }
-        ranked.sort(Comparator
-                .comparingDouble((float[] e) -> -e[0])
-                .thenComparingDouble(e -> e[1])
-                .thenComparingDouble(e -> e[2]));
+        ranked.sort(Comparator.comparingDouble((float[] e) -> -e[0]).thenComparingDouble(e -> e[1]).thenComparingDouble(
+                e -> e[2]));
 
         List<int[]> trees = new ArrayList<>(maxTrees);
         for (int i = 0; i < Math.min(maxTrees, ranked.size()); i++) {

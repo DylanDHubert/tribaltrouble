@@ -7,9 +7,9 @@ import org.jspecify.annotations.NonNull;
  * from terrain/resources so every player sees the same labels for the same map.
  */
 public record KeyPoint(
-        @NonNull KeyPointType type,
-        float worldX,
-        float worldY,
-        float score,
-        @NonNull String name) {
+                       @NonNull KeyPointType type,
+                       float worldX,
+                       float worldY,
+                       float score,
+                       @NonNull String name) {
 }

@@ -86,9 +86,8 @@ public final class VaultRenderer implements UIRenderer {
             spriteShader.setUniform(SpriteShader.Uniforms.DESATURATE, 0f);
             sprite.setupShaderUniforms(context, spriteShader, tex, false);
 
-            try (var _ = context.withCullMode(CullMode.BACK);
-                    var _ = context.withDepthMode(DepthMode.READ_WRITE);
-                    var _ = context.withBlendMode(BlendMode.ALPHA)) {
+            try (var _ = context.withCullMode(CullMode.BACK); var _ = context.withDepthMode(
+                    DepthMode.READ_WRITE); var _ = context.withBlendMode(BlendMode.ALPHA)) {
                 sprite.renderShader(spriteShader, anim, controller.getAnimTicks(), list);
             }
         } catch (Exception e) {

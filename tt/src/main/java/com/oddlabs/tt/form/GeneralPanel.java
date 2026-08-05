@@ -150,8 +150,8 @@ public class GeneralPanel extends Panel {
                 Settings.MINIMAP_SIZE_MAX,
                 Settings.clampMinimapSize(Settings.getSettings().minimap_size));
         group_minimap_size.addChild(slider_minimap_size);
-        slider_minimap_size.addValueListener(value ->
-                Settings.getSettings().minimap_size = Settings.clampMinimapSize((int) value));
+        slider_minimap_size.addValueListener(value -> Settings.getSettings().minimap_size = Settings.clampMinimapSize(
+                (int) value));
         label_minimap_size.place();
         label_minimap_small.place(label_minimap_size, BOTTOM_LEFT);
         slider_minimap_size.place(label_minimap_small, RIGHT_MID);

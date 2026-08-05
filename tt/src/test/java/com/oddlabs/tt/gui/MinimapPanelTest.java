@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for MinimapPanel coordinate conversion and color packing logic.
- * 
+ *
  * Note: Full rendering tests require an OpenGL context and are covered
  * in integration tests. These tests focus on pure logic that can be
  * tested without GPU dependencies.
@@ -86,11 +86,10 @@ class MinimapPanelTest {
 
         @ParameterizedTest
         @DisplayName("World to normalized coordinates")
-        @CsvSource({
-            "0, 1024, 0.0",       // Origin
-            "512, 1024, 0.5",     // Center
-            "1024, 1024, 1.0",    // Far edge
-            "256, 1024, 0.25",    // Quarter
+        @CsvSource({"0, 1024, 0.0",       // Origin
+                "512, 1024, 0.5",     // Center
+                "1024, 1024, 1.0",    // Far edge
+                "256, 1024, 0.25",    // Quarter
         })
         void worldToNormalized(float worldPos, int metersPerWorld, float expectedNorm) {
             float normalized = worldPos / metersPerWorld;
@@ -99,11 +98,10 @@ class MinimapPanelTest {
 
         @ParameterizedTest
         @DisplayName("Normalized to minimap pixel coordinates")
-        @CsvSource({
-            "0.0, 0, 150, 0",       // Left edge
-            "0.5, 0, 150, 75",      // Center
-            "1.0, 0, 150, 150",     // Right edge
-            "0.25, 10, 100, 35",    // With offset
+        @CsvSource({"0.0, 0, 150, 0",       // Left edge
+                "0.5, 0, 150, 75",      // Center
+                "1.0, 0, 150, 150",     // Right edge
+                "0.25, 10, 100, 35",    // With offset
         })
         void normalizedToMinimap(float normalized, float mapOffset, float mapSize, float expectedPixel) {
             float pixel = mapOffset + normalized * mapSize;
@@ -119,10 +117,10 @@ class MinimapPanelTest {
             int metersPerWorld = 1024;
             float mapX = 2f; // BORDER_WIDTH
             float mapW = 146f; // MAP_SIZE - 2*BORDER_WIDTH
-            
+
             float normX = worldX / metersPerWorld; // 0.5
             float dotX = mapX + normX * mapW;      // 2 + 0.5*146 = 75
-            
+
             assertEquals(0.5f, normX, 0.001f);
             assertEquals(75f, dotX, 0.001f);
         }
@@ -174,9 +172,7 @@ class MinimapPanelTest {
             Vector4f low = MinimapPanel.heightToColor(SEA + 1f, SEA, MAX);
             Vector4f high = MinimapPanel.heightToColor(SEA + 20f, SEA, MAX);
 
-            float delta = Math.abs(low.x() - high.x())
-                    + Math.abs(low.y() - high.y())
-                    + Math.abs(low.z() - high.z());
+            float delta = Math.abs(low.x() - high.x()) + Math.abs(low.y() - high.y()) + Math.abs(low.z() - high.z());
             assertTrue(delta > 0.1f, "Different heights should map to different colors");
         }
 
@@ -280,7 +276,7 @@ class MinimapPanelTest {
         void expandedDimensions() {
             int expectedWidth = MAP_SIZE + 2 * BORDER_WIDTH;  // 154
             int expectedHeight = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
-            
+
             assertEquals(154, expectedWidth);
             assertEquals(172, expectedHeight);
         }
@@ -296,10 +292,10 @@ class MinimapPanelTest {
         void mapAreaDimensions() {
             int totalWidth = MAP_SIZE + 2 * BORDER_WIDTH;  // 154
             int totalHeight = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
-            
+
             float mapW = totalWidth - 2 * BORDER_WIDTH;  // 150
             float mapH = totalHeight - HEADER_HEIGHT - 2 * BORDER_WIDTH;  // 150
-            
+
             assertEquals(150f, mapW);
             assertEquals(150f, mapH);
         }
@@ -314,17 +310,16 @@ class MinimapPanelTest {
 
         @ParameterizedTest
         @DisplayName("Minimap position is at left side for various screen sizes")
-        @CsvSource({
-            "1920, 1080, 154, 12, 12",  // Full HD
-            "1280, 720, 154, 12, 12",   // 720p
-            "800, 600, 154, 12, 12",    // Small
+        @CsvSource({"1920, 1080, 154, 12, 12",  // Full HD
+                "1280, 720, 154, 12, 12",   // 720p
+                "800, 600, 154, 12, 12",    // Small
         })
-        void minimapPosition(int screenWidth, int screenHeight, int minimapWidth, 
-                             int expectedX, int expectedY) {
+        void minimapPosition(int screenWidth, int screenHeight, int minimapWidth,
+                int expectedX, int expectedY) {
             // Minimap is now on the left side
             int x = MARGIN_LEFT;
             int y = MARGIN_BOTTOM;
-            
+
             assertEquals(expectedX, x);
             assertEquals(expectedY, y);
         }
@@ -348,14 +343,14 @@ class MinimapPanelTest {
             int screenHeight = 1080;
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;  // 154
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
-            
+
             // Click at center of minimap area
             int clickX = MARGIN_LEFT + minimapW / 2;  // 12 + 77 = 89
             int clickY = MARGIN_BOTTOM + minimapH / 2;  // 12 + 86 = 98
-            
+
             boolean inside = clickX >= MARGIN_LEFT && clickX < MARGIN_LEFT + minimapW &&
-                             clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
-            
+                    clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
+
             assertTrue(inside);
         }
 
@@ -364,14 +359,14 @@ class MinimapPanelTest {
         void pointOutsideMinimap() {
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;  // 154
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
-            
+
             // Click far to the right (outside)
             int clickX = 500;
             int clickY = 100;
-            
+
             boolean inside = clickX >= MARGIN_LEFT && clickX < MARGIN_LEFT + minimapW &&
-                             clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
-            
+                    clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
+
             assertFalse(inside);
         }
 
@@ -380,14 +375,14 @@ class MinimapPanelTest {
         void pointAtEdgeMinimap() {
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
-            
+
             // Click at top-left corner (just inside)
             int clickX = MARGIN_LEFT;
             int clickY = MARGIN_BOTTOM;
-            
+
             boolean inside = clickX >= MARGIN_LEFT && clickX < MARGIN_LEFT + minimapW &&
-                             clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
-            
+                    clickY >= MARGIN_BOTTOM && clickY < MARGIN_BOTTOM + minimapH;
+
             assertTrue(inside);
         }
     }
@@ -408,31 +403,31 @@ class MinimapPanelTest {
             int metersPerWorld = 1024;
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;  // 154
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
-            
+
             // Click at center of map area
             int minimapX = MARGIN_LEFT;
             int minimapY = MARGIN_BOTTOM;
-            
+
             // Map area within minimap
             float mapW = minimapW - 2 * BORDER_WIDTH;  // 150
             float mapH = minimapH - HEADER_HEIGHT - 2 * BORDER_WIDTH;  // 150
-            
+
             // Click at center of map area
-            int screenClickX = minimapX + BORDER_WIDTH + (int)(mapW / 2);
-            int screenClickY = minimapY + BORDER_WIDTH + (int)(mapH / 2);
-            
+            int screenClickX = minimapX + BORDER_WIDTH + (int) (mapW / 2);
+            int screenClickY = minimapY + BORDER_WIDTH + (int) (mapH / 2);
+
             // Convert to local coordinates
             int localX = screenClickX - minimapX;
             int localY = screenClickY - minimapY;
-            
+
             // Convert to normalized (0-1)
             float normX = (localX - BORDER_WIDTH) / mapW;
             float normY = (localY - BORDER_WIDTH) / mapH;
-            
+
             // Convert to world
             float worldX = normX * metersPerWorld;
             float worldY = normY * metersPerWorld;
-            
+
             // Should be approximately at world center
             assertEquals(512f, worldX, 5f, "World X should be at center");
             assertEquals(512f, worldY, 5f, "World Y should be at center");
@@ -444,26 +439,26 @@ class MinimapPanelTest {
             int metersPerWorld = 1024;
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
-            
+
             int minimapX = MARGIN_LEFT;
             int minimapY = MARGIN_BOTTOM;
-            
+
             float mapW = minimapW - 2 * BORDER_WIDTH;
             float mapH = minimapH - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-            
+
             // Click at bottom-left of map area (origin)
             int screenClickX = minimapX + BORDER_WIDTH;
             int screenClickY = minimapY + BORDER_WIDTH;
-            
+
             int localX = screenClickX - minimapX;
             int localY = screenClickY - minimapY;
-            
+
             float normX = (localX - BORDER_WIDTH) / mapW;
             float normY = (localY - BORDER_WIDTH) / mapH;
-            
+
             float worldX = normX * metersPerWorld;
             float worldY = normY * metersPerWorld;
-            
+
             assertEquals(0f, worldX, 1f, "World X should be at origin");
             assertEquals(0f, worldY, 1f, "World Y should be at origin");
         }
@@ -474,27 +469,27 @@ class MinimapPanelTest {
             int metersPerWorld = 1024;
             int minimapW = MAP_SIZE + 2 * BORDER_WIDTH;
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;
-            
+
             int minimapX = MARGIN_LEFT;
             int minimapY = MARGIN_BOTTOM;
-            
+
             float mapW = minimapW - 2 * BORDER_WIDTH;
             float mapH = minimapH - HEADER_HEIGHT - 2 * BORDER_WIDTH;
-            
+
             // Click at top-right of map area (far corner, just inside header)
             int screenClickX = minimapX + minimapW - BORDER_WIDTH - 1;
             int headerY = minimapY + minimapH - HEADER_HEIGHT - BORDER_WIDTH;
             int screenClickY = headerY - 1;  // Just below header
-            
+
             int localX = screenClickX - minimapX;
             int localY = screenClickY - minimapY;
-            
+
             float normX = (localX - BORDER_WIDTH) / mapW;
             float normY = (localY - BORDER_WIDTH) / mapH;
-            
+
             float worldX = normX * metersPerWorld;
             float worldY = normY * metersPerWorld;
-            
+
             // Should be near world far corner
             assertTrue(worldX > 900f, "World X should be near far edge, was " + worldX);
             assertTrue(worldY > 900f, "World Y should be near far edge, was " + worldY);
@@ -572,15 +567,15 @@ class MinimapPanelTest {
         void clickInHeader() {
             int minimapH = MAP_SIZE + HEADER_HEIGHT + 2 * BORDER_WIDTH;  // 172
             int minimapY = MARGIN_BOTTOM;
-            
+
             // Header Y position (local coordinates)
             int headerLocalY = minimapH - HEADER_HEIGHT - BORDER_WIDTH;  // 152
-            
+
             // Click in header (local Y coordinate)
             int localClickY = headerLocalY + 5;  // Inside header
-            
+
             boolean isHeaderClick = localClickY >= headerLocalY;
-            
+
             assertTrue(isHeaderClick, "Click should be detected as header click");
         }
 

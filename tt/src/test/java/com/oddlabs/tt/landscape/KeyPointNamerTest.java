@@ -23,19 +23,17 @@ class KeyPointNamerTest {
     private static final Set<String> VIKING_PEAKS = Set.of("Peak", "Crag", "Fell");
     private static final Set<String> VIKING_VALLEYS = Set.of("Vale", "Dell", "Fen");
     private static final Set<String> VIKING_LAKES = Set.of("Lake", "Tarn", "Loch");
-    private static final Set<String> VIKING_FORESTS =
-            Set.of("Holt", "Skog", "Lund", "Wald", "Wood", "Forest");
+    private static final Set<String> VIKING_FORESTS = Set.of("Holt", "Skog", "Lund", "Wald", "Wood", "Forest");
 
-    private static final Set<String> NATIVE_PEAKS =
-            Set.of("Butte", "Mesa", "Tor", "Knoll", "Rise", "Crown", "Spire", "Bluff");
-    private static final Set<String> NATIVE_VALLEYS =
-            Set.of("Basin", "Hollow", "Glade", "Glen", "Bottom", "Wash", "Fold", "Dell");
-    private static final Set<String> NATIVE_LAKES =
-            Set.of("Lagoon", "Pool", "Oasis", "Mere", "Water", "Wetland", "Fen", "Billabong");
-    private static final Set<String> NATIVE_FORESTS =
-            Set.of("Grove", "Woods", "Thicket", "Wilds", "Timber", "Forest");
-    private static final Set<String> BEACHES =
-            Set.of("Lagoon", "Inlet", "Reef", "Shoal", "Cove", "Flats", "Spit", "Bight");
+    private static final Set<String> NATIVE_PEAKS = Set.of("Butte", "Mesa", "Tor", "Knoll", "Rise", "Crown", "Spire",
+            "Bluff");
+    private static final Set<String> NATIVE_VALLEYS = Set.of("Basin", "Hollow", "Glade", "Glen", "Bottom", "Wash",
+            "Fold", "Dell");
+    private static final Set<String> NATIVE_LAKES = Set.of("Lagoon", "Pool", "Oasis", "Mere", "Water", "Wetland", "Fen",
+            "Billabong");
+    private static final Set<String> NATIVE_FORESTS = Set.of("Grove", "Woods", "Thicket", "Wilds", "Timber", "Forest");
+    private static final Set<String> BEACHES = Set.of("Lagoon", "Inlet", "Reef", "Shoal", "Cove", "Flats", "Spit",
+            "Bight");
 
     @Test
     @DisplayName("same race and points yield identical names")
@@ -57,13 +55,9 @@ class KeyPointNamerTest {
         List<KeyPoint> reordered = KeyPointNamer.name(VIKING, shuffled);
 
         for (KeyPoint point : original) {
-            String reorderedName = reordered.stream()
-                    .filter(other -> other.worldX() == point.worldX()
-                            && other.worldY() == point.worldY()
-                            && other.type() == point.type())
-                    .findFirst()
-                    .orElseThrow()
-                    .name();
+            String reorderedName = reordered.stream().filter(other -> other.worldX() == point.worldX()
+                    && other.worldY() == point.worldY()
+                    && other.type() == point.type()).findFirst().orElseThrow().name();
             assertEquals(point.name(), reorderedName);
         }
     }

@@ -23,13 +23,7 @@ class KeyPointRealTerrainTest {
             KeyPointType.PEAK, KeyPointType.VALLEY, KeyPointType.FOREST, KeyPointType.BEACH);
 
     @ParameterizedTest(name = "{0}m hills {1}")
-    @CsvSource({
-            "512, 0.2",
-            "512, 0.5",
-            "512, 0.8",
-            "1024, 0.2",
-            "1024, 0.5",
-            "1024, 0.8",
+    @CsvSource({"512, 0.2", "512, 0.5", "512, 0.8", "1024, 0.2", "1024, 0.5", "1024, 0.8",
     })
     @DisplayName("medium and large maps name a peak, valley, forest and beach")
     void namesEveryLandformKind(int metersPerWorld, float hills) {
@@ -49,9 +43,7 @@ class KeyPointRealTerrainTest {
     }
 
     @ParameterizedTest(name = "{0}m hills {1} seed {2}")
-    @CsvSource({
-            "512, 0.5, 7",
-            "1024, 0.5, 11",
+    @CsvSource({"512, 0.5, 7", "1024, 0.5, 11",
     })
     @DisplayName("landmarks stay within the quantifier budget and are spread out")
     void staysWithinBudgetAndSpreadsOut(int metersPerWorld, float hills, int seed) {
@@ -91,9 +83,8 @@ class KeyPointRealTerrainTest {
             if (!sb.isEmpty()) {
                 sb.append(", ");
             }
-            sb.append(p.type()).append('@')
-                    .append((int) p.worldX()).append(',').append((int) p.worldY())
-                    .append(String.format(" (%.2f)", p.score()));
+            sb.append(p.type()).append('@').append((int) p.worldX()).append(',').append((int) p.worldY()).append(
+                    String.format(" (%.2f)", p.score()));
         }
         return sb.toString();
     }

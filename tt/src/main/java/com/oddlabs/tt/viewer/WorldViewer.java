@@ -85,14 +85,14 @@ public final class WorldViewer implements Animated, AutoCloseable {
     public WorldViewer(@NonNull NetworkSelector network, final @NonNull GUIRoot gui_root,
             @NonNull WorldParameters world_params, @NonNull InGameInfo ingame_info, @NonNull WorldGenerator generator,
             PlayerSlot @NonNull [] player_slots, UnitInfo[] unit_infos, short player_slot, SessionID session_id) {
-        this(network, gui_root, world_params, ingame_info, generator, player_slots, unit_infos, player_slot,
-                session_id, null);
+        this(network, gui_root, world_params, ingame_info, generator, player_slots, unit_infos, player_slot, session_id, null);
     }
 
     /**
-     * @param player_colors  colors received over the network for the lobby this world was started from, or null if
-     *         unavailable (e.g. spectating/replay); falls back to local defaults per slot when null or when a
-     *         given player's color was never received
+     * @param player_colors colors received over the network for the lobby this world was started from, or null if
+     *                      unavailable (e.g. spectating/replay); falls back to local defaults per slot when null or
+     *                      when a
+     *                      given player's color was never received
      */
     public WorldViewer(@NonNull NetworkSelector network, final @NonNull GUIRoot gui_root,
             @NonNull WorldParameters world_params, @NonNull InGameInfo ingame_info, @NonNull WorldGenerator generator,

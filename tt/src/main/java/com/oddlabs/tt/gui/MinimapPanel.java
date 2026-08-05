@@ -111,7 +111,8 @@ public final class MinimapPanel extends GUIObject {
             return visible.getAsBoolean();
         }
 
-        @NonNull Texture texture() {
+        @NonNull
+        Texture texture() {
             return texture;
         }
 
@@ -852,15 +853,15 @@ public final class MinimapPanel extends GUIObject {
                 return true;
             } else if (localY >= BORDER_WIDTH && localX >= BORDER_WIDTH
                     && localX < getWidth() - BORDER_WIDTH && localY < headerY) {
-                float mapW = getWidth() - 2 * BORDER_WIDTH;
-                float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
+                        float mapW = getWidth() - 2 * BORDER_WIDTH;
+                        float mapH = getHeight() - HEADER_HEIGHT - 2 * BORDER_WIDTH;
 
-                float normX = (localX - BORDER_WIDTH) / mapW;
-                float normY = (localY - BORDER_WIDTH) / mapH;
+                        float normX = (localX - BORDER_WIDTH) / mapW;
+                        float normY = (localY - BORDER_WIDTH) / mapH;
 
-                moveCameraTo(normX * metersPerWorld, normY * metersPerWorld);
-                return true;
-            }
+                        moveCameraTo(normX * metersPerWorld, normY * metersPerWorld);
+                        return true;
+                    }
         } else {
             toggleExpanded();
             return true;

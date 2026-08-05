@@ -16,13 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for minimap behavior across delegate transitions.
- * 
+ *
  * These tests verify the architectural correctness of the minimap implementation:
  * - InGameDelegate.render2D() renders the minimap for all in-game delegates
  * - WorldViewer stores and provides access to the MinimapPanel
  * - MinimapPanel.doRemove() does not destroy the texture
  * - SelectionDelegate calls super.render2D() to render the minimap
- * 
+ *
  * Note: Full rendering tests require an OpenGL context. These tests focus on
  * verifying the class structure and method signatures that enable persistence.
  */
@@ -37,7 +37,7 @@ class MinimapIntegrationTest {
         void targetDelegateExtendsInGameDelegate() {
             // TargetDelegate -> ControllableCameraDelegate -> InGameDelegate
             assertTrue(InGameDelegate.class.isAssignableFrom(TargetDelegate.class),
-                "TargetDelegate should extend InGameDelegate (via ControllableCameraDelegate)");
+                    "TargetDelegate should extend InGameDelegate (via ControllableCameraDelegate)");
         }
 
         @Test
@@ -45,7 +45,7 @@ class MinimapIntegrationTest {
         void selectionDelegateExtendsInGameDelegate() {
             // SelectionDelegate -> ControllableCameraDelegate -> InGameDelegate
             assertTrue(InGameDelegate.class.isAssignableFrom(SelectionDelegate.class),
-                "SelectionDelegate should extend InGameDelegate (via ControllableCameraDelegate)");
+                    "SelectionDelegate should extend InGameDelegate (via ControllableCameraDelegate)");
         }
 
         @Test
@@ -61,7 +61,7 @@ class MinimapIntegrationTest {
             Method render2D = SelectionDelegate.class.getDeclaredMethod("render2D", GUIRenderer.class);
             assertNotNull(render2D, "SelectionDelegate should override render2D");
             assertEquals(SelectionDelegate.class, render2D.getDeclaringClass(),
-                "render2D should be declared in SelectionDelegate");
+                    "render2D should be declared in SelectionDelegate");
         }
 
         @Test
@@ -75,8 +75,8 @@ class MinimapIntegrationTest {
                     break;
                 }
             }
-            assertFalse(hasOwnRender2D, 
-                "TargetDelegate should NOT override render2D - it inherits from InGameDelegate");
+            assertFalse(hasOwnRender2D,
+                    "TargetDelegate should NOT override render2D - it inherits from InGameDelegate");
         }
     }
 
@@ -90,7 +90,7 @@ class MinimapIntegrationTest {
             Method getMinimapPanel = WorldViewer.class.getDeclaredMethod("getMinimapPanel");
             assertNotNull(getMinimapPanel);
             assertEquals(MinimapPanel.class, getMinimapPanel.getReturnType(),
-                "getMinimapPanel should return MinimapPanel");
+                    "getMinimapPanel should return MinimapPanel");
         }
 
         @Test
@@ -119,16 +119,16 @@ class MinimapIntegrationTest {
             Method doRemove = MinimapPanel.class.getDeclaredMethod("doRemove");
             assertNotNull(doRemove, "MinimapPanel should override doRemove()");
             assertEquals(MinimapPanel.class, doRemove.getDeclaringClass(),
-                "doRemove should be declared in MinimapPanel");
+                    "doRemove should be declared in MinimapPanel");
         }
 
         @Test
         @DisplayName("MinimapPanel has renderAtPosition method for external rendering")
         void minimapPanelHasRenderAtPosition() throws NoSuchMethodException {
             Method renderAtPosition = MinimapPanel.class.getDeclaredMethod(
-                "renderAtPosition", GUIRenderer.class);
+                    "renderAtPosition", GUIRenderer.class);
             assertNotNull(renderAtPosition,
-                "MinimapPanel should have renderAtPosition(GUIRenderer) for external rendering");
+                    "MinimapPanel should have renderAtPosition(GUIRenderer) for external rendering");
         }
 
         @Test
@@ -156,7 +156,7 @@ class MinimapIntegrationTest {
         void inGameDelegateGetViewerIsFinal() throws NoSuchMethodException {
             Method getViewer = InGameDelegate.class.getDeclaredMethod("getViewer");
             assertTrue(java.lang.reflect.Modifier.isFinal(getViewer.getModifiers()),
-                "getViewer should be final to ensure consistent access to WorldViewer");
+                    "getViewer should be final to ensure consistent access to WorldViewer");
         }
     }
 
@@ -169,33 +169,31 @@ class MinimapIntegrationTest {
         void minimapRenderingPathExists() {
             // This test verifies the architectural path for minimap rendering
             // InGameDelegate.render2D() calls viewer.getMinimapPanel().renderAtPosition()
-            
+
             // 1. InGameDelegate can access WorldViewer
             assertDoesNotThrow(() -> InGameDelegate.class.getDeclaredMethod("getViewer"),
-                "InGameDelegate needs getViewer() to access WorldViewer");
-            
+                    "InGameDelegate needs getViewer() to access WorldViewer");
+
             // 2. WorldViewer can access MinimapPanel
             assertDoesNotThrow(() -> WorldViewer.class.getDeclaredMethod("getMinimapPanel"),
-                "WorldViewer needs getMinimapPanel() to access MinimapPanel");
-            
+                    "WorldViewer needs getMinimapPanel() to access MinimapPanel");
+
             // 3. MinimapPanel can render at a position
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "renderAtPosition", GUIRenderer.class),
-                "MinimapPanel needs renderAtPosition() for external rendering");
+                    "renderAtPosition", GUIRenderer.class),
+                    "MinimapPanel needs renderAtPosition() for external rendering");
         }
 
         @Test
         @DisplayName("All in-game delegates inherit minimap rendering from InGameDelegate")
         void allInGameDelegatesInheritMinimapRendering() {
             // Verify that key in-game delegate classes inherit from InGameDelegate
-            Class<?>[] inGameDelegates = {
-                TargetDelegate.class,
-                SelectionDelegate.class,
+            Class<?>[] inGameDelegates = {TargetDelegate.class, SelectionDelegate.class,
             };
-            
+
             for (Class<?> delegateClass : inGameDelegates) {
                 assertTrue(InGameDelegate.class.isAssignableFrom(delegateClass),
-                    delegateClass.getSimpleName() + " should extend InGameDelegate");
+                        delegateClass.getSimpleName() + " should extend InGameDelegate");
             }
         }
     }
@@ -208,27 +206,27 @@ class MinimapIntegrationTest {
         @DisplayName("MinimapPanel has containsScreenPoint method")
         void minimapPanelHasContainsScreenPoint() throws NoSuchMethodException {
             Method method = MinimapPanel.class.getDeclaredMethod(
-                "containsScreenPoint", int.class, int.class);
+                    "containsScreenPoint", int.class, int.class);
             assertNotNull(method, "MinimapPanel should have containsScreenPoint method");
             assertEquals(boolean.class, method.getReturnType(),
-                "containsScreenPoint should return boolean");
+                    "containsScreenPoint should return boolean");
         }
 
         @Test
         @DisplayName("MinimapPanel has handleScreenClick method")
         void minimapPanelHasHandleScreenClick() throws NoSuchMethodException {
             Method method = MinimapPanel.class.getDeclaredMethod(
-                "handleScreenClick", int.class, int.class);
+                    "handleScreenClick", int.class, int.class);
             assertNotNull(method, "MinimapPanel should have handleScreenClick method");
             assertEquals(boolean.class, method.getReturnType(),
-                "handleScreenClick should return boolean");
+                    "handleScreenClick should return boolean");
         }
 
         @Test
         @DisplayName("InGameDelegate has tryHandleMinimapClick helper")
         void inGameDelegateHasTryHandleMinimapClick() throws NoSuchMethodException {
             Method method = InGameDelegate.class.getDeclaredMethod(
-                "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
+                    "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
             assertNotNull(method, "InGameDelegate should expose tryHandleMinimapClick");
             assertEquals(boolean.class, method.getReturnType());
         }
@@ -237,36 +235,36 @@ class MinimapIntegrationTest {
         @DisplayName("SelectionDelegate overrides mousePressed")
         void selectionDelegateOverridesMousePressed() throws NoSuchMethodException {
             Method method = SelectionDelegate.class.getDeclaredMethod(
-                "mousePressed", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
+                    "mousePressed", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
             assertNotNull(method, "SelectionDelegate should override mousePressed");
             assertEquals(SelectionDelegate.class, method.getDeclaringClass(),
-                "mousePressed should be declared in SelectionDelegate");
+                    "mousePressed should be declared in SelectionDelegate");
         }
 
         @Test
         @DisplayName("TargetDelegate overrides mousePressed")
         void targetDelegateOverridesMousePressed() throws NoSuchMethodException {
             Method method = TargetDelegate.class.getDeclaredMethod(
-                "mousePressed", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
+                    "mousePressed", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class);
             assertNotNull(method, "TargetDelegate should override mousePressed");
             assertEquals(TargetDelegate.class, method.getDeclaringClass(),
-                "mousePressed should be declared in TargetDelegate");
+                    "mousePressed should be declared in TargetDelegate");
         }
 
         @Test
         @DisplayName("Click handling path: tryHandleMinimapClick -> containsScreenPoint -> handleScreenClick")
         void clickHandlingPathExists() {
             assertDoesNotThrow(() -> InGameDelegate.class.getDeclaredMethod(
-                "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class),
-                "InGameDelegate needs tryHandleMinimapClick()");
+                    "tryHandleMinimapClick", com.oddlabs.tt.gui.MouseButton.class, int.class, int.class),
+                    "InGameDelegate needs tryHandleMinimapClick()");
 
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "containsScreenPoint", int.class, int.class),
-                "MinimapPanel needs containsScreenPoint()");
+                    "containsScreenPoint", int.class, int.class),
+                    "MinimapPanel needs containsScreenPoint()");
 
             assertDoesNotThrow(() -> MinimapPanel.class.getDeclaredMethod(
-                "handleScreenClick", int.class, int.class),
-                "MinimapPanel needs handleScreenClick()");
+                    "handleScreenClick", int.class, int.class),
+                    "MinimapPanel needs handleScreenClick()");
         }
     }
 
