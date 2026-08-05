@@ -255,6 +255,9 @@ public final class WorldViewer implements Animated, AutoCloseable {
                 case PlayerSlot.AI_NORMAL -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_NORMAL);
                 case PlayerSlot.AI_HARD -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_HARD);
                 case PlayerSlot.AI_EASY -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_EASY);
+                case PlayerSlot.AI_EXTREME -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_EXTREME);
+                case PlayerSlot.AI_GRUELLING -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_GRUELLING);
+                case PlayerSlot.AI_HERCULEAN -> ai = new AdvancedAI(player, unit_info, AdvancedAI.DIFFICULTY_HERCULEAN);
                 case PlayerSlot.AI_BATTLE_TUTORIAL -> ai = new PassiveAI(player, unit_info, true);
                 case PlayerSlot.AI_TOWER_TUTORIAL -> {
                 }

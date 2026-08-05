@@ -74,6 +74,9 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
     private static final int COMPUTER_EASY_INDEX = 2;
     private static final int COMPUTER_NORMAL_INDEX = 3;
     private static final int COMPUTER_HARD_INDEX = 4;
+    private static final int COMPUTER_EXTREME_INDEX = 5;
+    private static final int COMPUTER_GRUELLING_INDEX = 6;
+    private static final int COMPUTER_HERCULEAN_INDEX = 7;
 
     private static final int SEND_BUTTON_WIDTH = 60;
 
@@ -221,6 +224,9 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
                 case EASY_AI -> applyAi(server, i, race, team, PlayerSlot.AI_EASY);
                 case NORMAL_AI -> applyAi(server, i, race, team, PlayerSlot.AI_NORMAL);
                 case HARD_AI -> applyAi(server, i, race, team, PlayerSlot.AI_HARD);
+                case EXTREME_AI -> applyAi(server, i, race, team, PlayerSlot.AI_EXTREME);
+                case GRUELLING_AI -> applyAi(server, i, race, team, PlayerSlot.AI_GRUELLING);
+                case HERCULEAN_AI -> applyAi(server, i, race, team, PlayerSlot.AI_HERCULEAN);
             }
         }
     }
@@ -267,6 +273,9 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
             case COMPUTER_EASY_INDEX:
             case COMPUTER_NORMAL_INDEX:
             case COMPUTER_HARD_INDEX:
+            case COMPUTER_EXTREME_INDEX:
+            case COMPUTER_GRUELLING_INDEX:
+            case COMPUTER_HERCULEAN_INDEX:
                 assert !rated;
                 boolean new_ai = player.getType() != PlayerSlot.AI;
                 if (new_ai || race_changed || team_changed || difficulty_changed) {
@@ -429,12 +438,18 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         PulldownItem<Void> computer_easy_item = new PulldownItem<>(i18n("easy_ai"));
         PulldownItem<Void> computer_normal_item = new PulldownItem<>(i18n("normal_ai"));
         PulldownItem<Void> computer_hard_item = new PulldownItem<>(i18n("hard_ai"));
+        PulldownItem<Void> computer_extreme_item = new PulldownItem<>(i18n("extreme_ai"));
+        PulldownItem<Void> computer_gruelling_item = new PulldownItem<>(i18n("gruelling_ai"));
+        PulldownItem<Void> computer_herculean_item = new PulldownItem<>(i18n("herculean_ai"));
         pulldown_menu.addItem(open_item);
         pulldown_menu.addItem(closed_item);
         if (!rated) {
             pulldown_menu.addItem(computer_easy_item);
             pulldown_menu.addItem(computer_normal_item);
             pulldown_menu.addItem(computer_hard_item);
+            pulldown_menu.addItem(computer_extreme_item);
+            pulldown_menu.addItem(computer_gruelling_item);
+            pulldown_menu.addItem(computer_herculean_item);
         }
         PulldownButton<?> pulldown_button = new PulldownButton<>(gui_root, pulldown_menu, CLOSED_INDEX, 150);
         slot_buttons[index] = pulldown_button;

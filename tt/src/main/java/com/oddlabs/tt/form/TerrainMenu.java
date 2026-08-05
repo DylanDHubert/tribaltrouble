@@ -80,7 +80,7 @@ public final class TerrainMenu extends Group {
     private static final int TERRAIN_TYPE_CARDINALITY_LEGACY = 2;
     private static final int SIZE_CARDINALITY = 7;
     private static final int SIZE_CARDINALITY_LEGACY = 4;
-    private static final int DIFFICULTY_CARDINALITY = 4;
+    private static final int DIFFICULTY_CARDINALITY = 8;
     private static final int RACE_CARDINALITY = 2;
     private static final int TEAM_CARDINALITY = 6;
     private static final @NonNull BigInteger MAX_VALUE;
@@ -672,8 +672,8 @@ public final class TerrainMenu extends Group {
             if (i == 0) {
                 difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("human")));
             } else {
-                // MP slots can wait for a human joiner; SP has no joiners so it omits Open. Adding Open shifts the MP
-                // slot indices (Open 0, Closed 1, AI 2-4). See fillToDifficultyIndex / difficultyIndexToFill.
+                // MP SLOTS CAN WAIT FOR A HUMAN JOINER; SP HAS NO JOINERS SO IT OMITS OPEN. ADDING OPEN SHIFTS THE MP
+                // SLOT INDICES (OPEN 0, CLOSED 1, AI 2-7). SEE FILLTODIFFICULTYINDEX / DIFFICULTYINDEXTOFILL.
                 if (multiplayer) {
                     difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("open")));
                 }
@@ -681,6 +681,9 @@ public final class TerrainMenu extends Group {
                 difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("easy_ai")));
                 difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("normal_ai")));
                 difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("hard_ai")));
+                difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("extreme_ai")));
+                difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("gruelling_ai")));
+                difficulty_pulldown_menus[i].addItem(new PulldownItem<>(i18n("herculean_ai")));
             }
 
             difficulty_pulldown_buttons[i] = new PulldownButton<>(gui_root, difficulty_pulldown_menus[i], 0, 115);
@@ -1056,7 +1059,7 @@ public final class TerrainMenu extends Group {
         return new RosterTemplate(slots);
     }
 
-    // MP slot menu order: Open 0, Closed 1, Easy 2, Normal 3, Hard 4. Only used on the MP preset path.
+    // MP SLOT MENU ORDER: OPEN 0, CLOSED 1, EASY 2, NORMAL 3, HARD 4, EXTREME 5, GRUELLING 6, HERCULEAN 7.
     private static RosterTemplate.@NonNull Fill difficultyIndexToFill(int slot_index, int difficulty_index) {
         if (slot_index == 0) {
             return RosterTemplate.Fill.HOST;
@@ -1066,6 +1069,9 @@ public final class TerrainMenu extends Group {
             case 2 -> RosterTemplate.Fill.EASY_AI;
             case 3 -> RosterTemplate.Fill.NORMAL_AI;
             case 4 -> RosterTemplate.Fill.HARD_AI;
+            case 5 -> RosterTemplate.Fill.EXTREME_AI;
+            case 6 -> RosterTemplate.Fill.GRUELLING_AI;
+            case 7 -> RosterTemplate.Fill.HERCULEAN_AI;
             default -> RosterTemplate.Fill.OPEN;
         };
     }
@@ -1095,7 +1101,7 @@ public final class TerrainMenu extends Group {
         }
     }
 
-    // MP slot menu order: Open 0, Closed 1, Easy 2, Normal 3, Hard 4. Only used on the MP preset path.
+    // MP SLOT MENU ORDER: OPEN 0, CLOSED 1, EASY 2, NORMAL 3, HARD 4, EXTREME 5, GRUELLING 6, HERCULEAN 7.
     private static int fillToDifficultyIndex(RosterTemplate.@NonNull Fill fill, int slot_index) {
         if (slot_index == 0) {
             return 0;
@@ -1106,6 +1112,9 @@ public final class TerrainMenu extends Group {
             case EASY_AI -> 2;
             case NORMAL_AI -> 3;
             case HARD_AI -> 4;
+            case EXTREME_AI -> 5;
+            case GRUELLING_AI -> 6;
+            case HERCULEAN_AI -> 7;
         };
     }
 

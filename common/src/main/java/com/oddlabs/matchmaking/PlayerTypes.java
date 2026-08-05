@@ -5,5 +5,8 @@ public enum PlayerTypes {
     Human,
     AIEasy,
     AINormal,
-    AIHard
+    AIHard,
+    AIExtreme,
+    AIGruelling,
+    AIHerculean
 }

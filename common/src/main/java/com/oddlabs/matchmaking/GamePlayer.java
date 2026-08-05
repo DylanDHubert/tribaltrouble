@@ -24,6 +24,15 @@ public class GamePlayer implements Serializable {
                 case AIHard:
                     _nick = "AI Hard";
                     break;
+                case AIExtreme:
+                    _nick = "AI Extreme";
+                    break;
+                case AIGruelling:
+                    _nick = "AI Gruelling";
+                    break;
+                case AIHerculean:
+                    _nick = "AI Herculean";
+                    break;
                 default:
                     _nick = "Unknown player type";
             }

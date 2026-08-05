@@ -72,42 +72,59 @@ public final class GameOverTrigger implements Animated {
 
     private void tryUnlockAchievements(@NonNull Player local_player, Player @NonNull [] players) {
         if (SteamManager.getInstance() == null) return;
-        // Ludicrous speed only
+        // LUDICROUS SPEED ONLY
         if (viewer.getWorld().getGamespeed() != 4) return;
 
-        int ai_team = -1;
-        boolean is_player_alone = true;
-        boolean all_hards_same_team = true;
-        int hard_ais_on_same_team = 0;
         int current_player_team = local_player.getPlayerInfo().getTeam();
-
         for (Player current : players) {
             if (current != local_player && current.getPlayerInfo().getTeam() == current_player_team) {
-                is_player_alone = false;
-                break;
-            }
-
-            if (current != local_player
-                    && current.getAI() instanceof AdvancedAI ai
-                    && ai.getDifficulty() == AdvancedAI.DIFFICULTY_HARD) {
-                if (ai_team == -1) {
-                    ai_team = current.getPlayerInfo().getTeam();
-                    hard_ais_on_same_team++;
-                } else if (current.getPlayerInfo().getTeam() == ai_team) {
-                    hard_ais_on_same_team++;
-                } else {
-                    all_hards_same_team = false;
-                }
+                return;
             }
         }
 
-        if (!is_player_alone || !all_hards_same_team) return;
+        tryUnlockTierAchievements(players, AdvancedAI.DIFFICULTY_HARD,
+                SteamAchievementNames.BEAT_3_HARDS_ON_SMALL,
+                SteamAchievementNames.BEAT_5_HARDS_ON_MEDIUM);
+        tryUnlockTierAchievements(players, AdvancedAI.DIFFICULTY_EXTREME,
+                SteamAchievementNames.BEAT_3_EXTREMES_ON_SMALL,
+                SteamAchievementNames.BEAT_5_EXTREMES_ON_MEDIUM);
+        tryUnlockTierAchievements(players, AdvancedAI.DIFFICULTY_GRUELLING,
+                SteamAchievementNames.BEAT_3_GRUELLINGS_ON_SMALL,
+                SteamAchievementNames.BEAT_5_GRUELLINGS_ON_MEDIUM);
+        tryUnlockTierAchievements(players, AdvancedAI.DIFFICULTY_HERCULEAN,
+                SteamAchievementNames.BEAT_3_HERCULEANS_ON_SMALL,
+                SteamAchievementNames.BEAT_5_HERCULEANS_ON_MEDIUM);
+    }
+
+    private void tryUnlockTierAchievements(Player @NonNull [] players, int difficulty,
+            @NonNull String small_id, @NonNull String medium_id) {
+        int ai_team = -1;
+        boolean all_same_team = true;
+        int count = 0;
+
+        for (Player current : players) {
+            if (current == viewer.getLocalPlayer())
+                continue;
+            if (!(current.getAI() instanceof AdvancedAI ai) || ai.getDifficulty() != difficulty)
+                continue;
+            if (ai_team == -1) {
+                ai_team = current.getPlayerInfo().getTeam();
+                count++;
+            } else if (current.getPlayerInfo().getTeam() == ai_team) {
+                count++;
+            } else {
+                all_same_team = false;
+            }
+        }
+
+        if (!all_same_team || count == 0)
+            return;
 
         int map_size = viewer.getWorld().getMapSize();
-        if (hard_ais_on_same_team >= 3 && map_size == Game.SIZE_SMALL) {
-            SteamManager.unlockAchievement(SteamAchievementNames.BEAT_3_HARDS_ON_SMALL);
-        } else if (hard_ais_on_same_team >= 5 && map_size == Game.SIZE_MEDIUM) {
-            SteamManager.unlockAchievement(SteamAchievementNames.BEAT_5_HARDS_ON_MEDIUM);
+        if (count >= 3 && map_size == Game.SIZE_SMALL) {
+            SteamManager.unlockAchievement(small_id);
+        } else if (count >= 5 && map_size == Game.SIZE_MEDIUM) {
+            SteamManager.unlockAchievement(medium_id);
         }
     }
 

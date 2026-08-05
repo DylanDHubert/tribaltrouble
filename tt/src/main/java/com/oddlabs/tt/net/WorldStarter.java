@@ -140,6 +140,9 @@ final class WorldStarter implements LoadCallback {
             case PlayerSlot.AI_EASY -> PlayerTypes.AIEasy;
             case PlayerSlot.AI_NORMAL -> PlayerTypes.AINormal;
             case PlayerSlot.AI_HARD -> PlayerTypes.AIHard;
+            case PlayerSlot.AI_EXTREME -> PlayerTypes.AIExtreme;
+            case PlayerSlot.AI_GRUELLING -> PlayerTypes.AIGruelling;
+            case PlayerSlot.AI_HERCULEAN -> PlayerTypes.AIHerculean;
             default -> PlayerTypes.None;
         };
     }

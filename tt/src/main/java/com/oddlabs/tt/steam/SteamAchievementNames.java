@@ -10,6 +10,12 @@ public final class SteamAchievementNames {
     // Single player — Skirmish
     public static final String BEAT_3_HARDS_ON_SMALL = "BEAT_3_HARDS_ON_SMALL";
     public static final String BEAT_5_HARDS_ON_MEDIUM = "BEAT_5_HARDS_ON_MEDIUM";
+    public static final String BEAT_3_EXTREMES_ON_SMALL = "BEAT_3_EXTREMES_ON_SMALL";
+    public static final String BEAT_5_EXTREMES_ON_MEDIUM = "BEAT_5_EXTREMES_ON_MEDIUM";
+    public static final String BEAT_3_GRUELLINGS_ON_SMALL = "BEAT_3_GRUELLINGS_ON_SMALL";
+    public static final String BEAT_5_GRUELLINGS_ON_MEDIUM = "BEAT_5_GRUELLINGS_ON_MEDIUM";
+    public static final String BEAT_3_HERCULEANS_ON_SMALL = "BEAT_3_HERCULEANS_ON_SMALL";
+    public static final String BEAT_5_HERCULEANS_ON_MEDIUM = "BEAT_5_HERCULEANS_ON_MEDIUM";
 
     private SteamAchievementNames() {
     }

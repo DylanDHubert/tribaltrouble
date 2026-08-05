@@ -14,11 +14,14 @@ public final class PlayerSlot implements Serializable {
     public static final int AI_EASY = 1;
     public static final int AI_NORMAL = 2;
     public static final int AI_HARD = 3;
-    public static final int AI_TOWER_TUTORIAL = 4;
-    public static final int AI_CHIEFTAIN_TUTORIAL = 5;
-    public static final int AI_BATTLE_TUTORIAL = 6;
-    public static final int AI_PASSIVE_CAMPAIGN = 7;
-    public static final int AI_NEUTRAL_CAMPAIGN = 8;
+    public static final int AI_EXTREME = 4;
+    public static final int AI_GRUELLING = 5;
+    public static final int AI_HERCULEAN = 6;
+    public static final int AI_TOWER_TUTORIAL = 7;
+    public static final int AI_CHIEFTAIN_TUTORIAL = 8;
+    public static final int AI_BATTLE_TUTORIAL = 9;
+    public static final int AI_PASSIVE_CAMPAIGN = 10;
+    public static final int AI_NEUTRAL_CAMPAIGN = 11;
 
     public static final int OPEN = 1;
     public static final int CLOSED = 2;
