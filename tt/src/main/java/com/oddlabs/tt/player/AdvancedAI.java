@@ -65,6 +65,11 @@ public final class AdvancedAI extends AI {
     private final int difficulty;
 
     private @Nullable LandscapeTarget defense_target = null;
+    /**
+     * Enemy position found by the most recent {@link #scanForEnemies} call, kept separate from
+     * {@link #defense_target} so scans of undefended buildings don't clobber the best target found so far.
+     */
+    private @Nullable LandscapeTarget last_scan_target = null;
 
     public AdvancedAI(@NonNull Player owner, UnitInfo unit_info, int difficulty) {
         super(owner, unit_info);
@@ -131,14 +136,23 @@ public final class AdvancedAI extends AI {
 
     private void nodeDefendBase() {
         int enemy_score = 0;
+        defense_target = null;
         if (getQuarters() != null) {
             for (Selectable<?> quarter : getQuarters()) {
-                enemy_score = Math.max(enemy_score, scanForEnemies(quarter));
+                int score = scanForEnemies(quarter);
+                if (score > enemy_score) {
+                    enemy_score = score;
+                    defense_target = last_scan_target;
+                }
             }
         }
         if (getArmory() != null && enemy_score == 0) {
             for (Selectable<?> armory : getArmory()) {
-                enemy_score = Math.max(enemy_score, scanForEnemies(armory));
+                int score = scanForEnemies(armory);
+                if (score > enemy_score) {
+                    enemy_score = score;
+                    defense_target = last_scan_target;
+                }
             }
         }
         enemy_score = (int) (DEFENSE_FACTOR[difficulty] * enemy_score);
@@ -190,6 +204,11 @@ public final class AdvancedAI extends AI {
     }
 
     private void nodeDefend(int score) {
+        if (defense_target == null) {
+            // Defensive guard: enemy_score should only be positive when a target was recorded,
+            // but avoid crashing the AI/game if that invariant is ever violated.
+            return;
+        }
         List<Unit> unit_list = new ArrayList<>();
 
         int result = 0;
@@ -237,12 +256,12 @@ public final class AdvancedAI extends AI {
                 Unit.class);
         getUnitGrid().scan(filter, src.getGridX(), src.getGridY());
         int score = 0;
-        defense_target = null;
+        last_scan_target = null;
         for (Unit unit : filter.getResult()) {
             if (!unit.isDead() && getOwner().isEnemy(unit.getOwner())) {
                 score += getUnitScore(unit);
-                if (defense_target == null)
-                    defense_target = new LandscapeTarget(unit.getGridX(), unit.getGridY());
+                if (last_scan_target == null)
+                    last_scan_target = new LandscapeTarget(unit.getGridX(), unit.getGridY());
             }
         }
         return score;
