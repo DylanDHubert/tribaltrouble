@@ -98,8 +98,11 @@ public final class Client implements ARMIEventBroker, GameClientInterface, Conne
     public void chat(int player_slot, @Nullable String chat) {
         PlayerColorMessage.Parsed parsed = PlayerColorMessage.tryParse(chat);
         if (parsed != null) {
-            if (parsed.slot() == player_slot)
+            if (parsed.slot() == player_slot) {
                 player_colors.setNetworkColor(parsed.slot(), parsed.color());
+                if (getConfigurationListener() != null)
+                    getConfigurationListener().playerColorChanged();
+            }
             return;
         }
         if (chat != null && player_slot >= 0 && player_slot < player_slots.length)

@@ -393,6 +393,11 @@ public final class GameMenu extends Panel implements ConfigurationListener, Chat
         updating = false;
     }
 
+    @Override
+    public void playerColorChanged() {
+        refreshPlayerLabelColors();
+    }
+
     private void refreshPlayerLabelColors() {
         PlayerColors player_colors = game_network.getClient().getPlayerColors();
         for (int i = 0; i < player_labels.length; i++) {
