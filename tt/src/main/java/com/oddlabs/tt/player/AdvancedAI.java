@@ -55,6 +55,9 @@ public final class AdvancedAI extends AI {
     private static final int[] MAX_BASES = new int[]{1, 1, 1, 2, 3, 4};
     // TOWERS SCALE WITH BASES (2 PER BASE FROM HARD UP)
     private static final int[] MAX_TOWERS = new int[]{0, 0, 2, 4, 6, 8};
+    // SECONDS TO WAIT AFTER STARTING AN EXPANSION BASE BEFORE THE NEXT ONE
+    private static final float BASE_EXPANSION_DELAY = 120f;
+    private static final float BASE_EXPANSION_DELAY_STEP = 30f;
 
     // PER-ARMORY ATTACK WAVE CAP; TOTAL WAVE GROWS WITH ACTIVE ARMORIES
     private final int[] NUM_WARRIORS = new int[]{3, 7, 10, 12, 14, 16};
@@ -70,6 +73,10 @@ public final class AdvancedAI extends AI {
      * {@link #defense_target} so scans of undefended buildings don't clobber the best target found so far.
      */
     private @Nullable LandscapeTarget last_scan_target = null;
+    private float expansion_cooldown = 0f;
+    // TRACK IN-FLIGHT BASE BUILDS; MULTI-BASE CLEARS PER-TYPE CONSTRUCTION FLAGS EARLY
+    private int quarters_committed = 0;
+    private int armories_committed = 0;
 
     public AdvancedAI(@NonNull Player owner, UnitInfo unit_info, int difficulty) {
         super(owner, unit_info);
@@ -82,6 +89,8 @@ public final class AdvancedAI extends AI {
 
     @Override
     public void animate(float t) {
+        if (expansion_cooldown > 0f)
+            expansion_cooldown -= t;
         if (!shouldDoAction(t))
             return;
         reclassify();
@@ -125,13 +134,29 @@ public final class AdvancedAI extends AI {
     }
 
     private void nodeExpandBases() {
+        syncBaseCommitments();
         int max = MAX_BASES[difficulty];
-        int quarters = buildingCount(getQuarters());
-        int armories = buildingCount(getArmory());
-        if (quarters < max)
+
+        // FINISH THE CURRENT PAIR BEFORE STARTING ANOTHER QUARTERS
+        if (armories_committed < quarters_committed) {
+            if (armories_committed == buildingCount(getArmory()))
+                nodeBuildArmory();
+            return;
+        }
+
+        // WAIT FOR IN-FLIGHT QUARTERS/ARMORY BEFORE EXPANDING AGAIN
+        if (quarters_committed > buildingCount(getQuarters())
+                || armories_committed > buildingCount(getArmory()))
+            return;
+
+        // NEXT BASE ONLY WHEN FULLY PAIRED AND EXPANSION DELAY HAS ELAPSED
+        if (quarters_committed < max && expansion_cooldown <= 0f)
             nodeBuildQuarters();
-        if (armories < max && armories < buildingCount(getQuarters()))
-            nodeBuildArmory();
+    }
+
+    private void syncBaseCommitments() {
+        quarters_committed = Math.max(quarters_committed, buildingCount(getQuarters()));
+        armories_committed = Math.max(armories_committed, buildingCount(getArmory()));
     }
 
     private void nodeDefendBase() {
@@ -502,14 +527,17 @@ public final class AdvancedAI extends AI {
     }
 
     private void nodeBuildArmory() {
-        if (buildingCount(getQuarters()) == 0) {
+        syncBaseCommitments();
+        if (quarters_committed == 0) {
             nodeBuildQuarters();
             return;
         }
         int max = MAX_BASES[difficulty];
         int armories = buildingCount(getArmory());
-        int quarters_count = buildingCount(getQuarters());
-        if (armoryUnderConstruction() || armories >= max || armories >= quarters_count)
+        if (armories_committed > armories || armories_committed >= max
+                || armories_committed >= quarters_committed)
+            return;
+        if (getQuarters() == null || armories >= getQuarters().length)
             return;
 
         // NEXT ARMORY PAIRS WITH THE UNMATCHED QUARTERS
@@ -525,15 +553,19 @@ public final class AdvancedAI extends AI {
         if (builders.length == 0)
             return;
 
-        setArmoryUnderConstruction(buildBuilding(Race.BUILDING_ARMORY, builders, quarters.getGridX(),
-                quarters.getGridY()));
+        boolean started = buildBuilding(Race.BUILDING_ARMORY, builders, quarters.getGridX(),
+                quarters.getGridY());
+        setArmoryUnderConstruction(started);
+        if (started)
+            armories_committed = armories + 1;
         reclassify();
     }
 
     private void nodeBuildQuarters() {
+        syncBaseCommitments();
         int max = MAX_BASES[difficulty];
         int have = buildingCount(getQuarters());
-        if (quartersUnderConstruction() || have >= max)
+        if (quarters_committed > have || quarters_committed >= max)
             return;
 
         Selectable<?>[] builders = getPeons(MIN_UNITS_REPRODUCING[difficulty]);
@@ -551,7 +583,15 @@ public final class AdvancedAI extends AI {
             grid_y = site[1];
         }
 
-        setQuartersUnderConstruction(buildBuilding(Race.BUILDING_QUARTERS, builders, grid_x, grid_y));
+        boolean started = buildBuilding(Race.BUILDING_QUARTERS, builders, grid_x, grid_y);
+        setQuartersUnderConstruction(started);
+        if (started) {
+            quarters_committed = have + 1;
+            if (have >= 1) {
+                // SPACE OUT EXPANSIONS; LATER BASES WAIT A BIT LONGER
+                expansion_cooldown = BASE_EXPANSION_DELAY + BASE_EXPANSION_DELAY_STEP * have;
+            }
+        }
         reclassify();
     }
 
